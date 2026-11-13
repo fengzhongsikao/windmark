@@ -2,7 +2,7 @@ name: windmark
 description: "风痕：梅花易数与六爻纳甲。"
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 1.0.3+3
+version: 1.0.4+4
 
 environment:
   sdk: ^3.13.4
