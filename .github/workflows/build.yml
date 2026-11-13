@@ -80,15 +80,15 @@ jobs:
         run: |
           set -euo pipefail
           if [ ! -f gradlew ]; then
-            curl -fsSL -o gradlew https://raw.githubusercontent.com/gradle/gradle/v9.3.1/gradlew
+            curl -fsSL -o gradlew https://raw.githubusercontent.com/gradle/gradle/v9.5.0/gradlew
             chmod +x gradlew
           fi
           if [ ! -f gradlew.bat ]; then
-            curl -fsSL -o gradlew.bat https://raw.githubusercontent.com/gradle/gradle/v9.3.1/gradlew.bat
+            curl -fsSL -o gradlew.bat https://raw.githubusercontent.com/gradle/gradle/v9.5.0/gradlew.bat
           fi
           if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
             curl -fsSL -o gradle/wrapper/gradle-wrapper.jar \
-              https://github.com/gradle/gradle/raw/v9.3.1/gradle/wrapper/gradle-wrapper.jar
+              https://github.com/gradle/gradle/raw/v9.5.0/gradle/wrapper/gradle-wrapper.jar
           fi
 
       - name: Limit Gradle memory
