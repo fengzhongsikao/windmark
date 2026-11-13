@@ -9,10 +9,14 @@ class ReadingTile extends StatelessWidget {
     super.key,
     required this.record,
     required this.onTap,
+    this.showKind = true,
+    this.selected,
   });
 
   final ReadingRecord record;
   final VoidCallback onTap;
+  final bool showKind;
+  final bool? selected;
 
   @override
   Widget build(BuildContext context) {
@@ -38,12 +42,12 @@ class ReadingTile extends StatelessWidget {
                   color: AppColors.cinnabar.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text(
-                  kind.substring(0, 1),
-                  style: const TextStyle(
-                    color: AppColors.cinnabar,
-                    fontWeight: FontWeight.w700,
-                  ),
+                child: Icon(
+                  record.kind == ReadingKind.meihua
+                      ? Icons.filter_vintage_outlined
+                      : Icons.toll_outlined,
+                  color: AppColors.cinnabar,
+                  size: 22,
                 ),
               ),
               const SizedBox(width: 12),
@@ -61,7 +65,7 @@ class ReadingTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '$kind · ${record.summary}',
+                      showKind ? '$kind · ${record.summary}' : record.summary,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: AppColors.inkSoft),
@@ -77,7 +81,13 @@ class ReadingTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppColors.inkSoft),
+              if (selected == null)
+                const Icon(Icons.chevron_right, color: AppColors.inkSoft)
+              else
+                Icon(
+                  selected! ? Icons.check_box : Icons.check_box_outline_blank,
+                  color: selected! ? AppColors.cinnabar : AppColors.inkSoft,
+                ),
             ],
           ),
         ),

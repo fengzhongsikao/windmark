@@ -10,9 +10,11 @@ void openReading(BuildContext context, ReadingRecord record) {
   final Widget page = switch (record.kind) {
     ReadingKind.meihua => MeihuaResultPage(
       cast: MeihuaCast.fromPayload(record.payload, record.createdAt),
+      canSave: false,
     ),
     ReadingKind.liuyao => LiuyaoResultPage(
       reading: LiuyaoReading.fromPayload(record.payload, record.createdAt),
+      canSave: false,
     ),
   };
   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));

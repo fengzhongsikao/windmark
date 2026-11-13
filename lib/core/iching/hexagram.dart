@@ -30,6 +30,12 @@ class Hexagram {
     return Hexagram(next);
   }
 
+  /// 错卦，六爻阴阳全变。
+  Hexagram get opposite => Hexagram([for (final line in lines) !line]);
+
+  /// 综卦，上下颠倒。
+  Hexagram get inverted => Hexagram(lines.reversed.toList());
+
   /// 互卦取二三四爻为下卦，三四五爻为上卦。
   Hexagram get mutual {
     return Hexagram([

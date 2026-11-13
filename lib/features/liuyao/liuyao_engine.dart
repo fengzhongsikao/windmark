@@ -98,6 +98,19 @@ class InstalledLine {
   String get position => YaoPosition.names[index];
 }
 
+class NajiaLine {
+  const NajiaLine({required this.ganzhi, required this.relative});
+
+  final String ganzhi;
+  final String relative;
+
+  String get stem => ganzhi.substring(0, 1);
+
+  String get branch => ganzhi.substring(1);
+
+  WuXing get element => elementOfBranch(branch);
+}
+
 class LiuyaoReading {
   const LiuyaoReading({
     required this.lines,
@@ -123,13 +136,13 @@ class LiuyaoReading {
   final ReadingTone tone;
   final List<String> paragraphs;
 
-  ReadingRecord toRecord() {
+  ReadingRecord toRecord({required String title}) {
     final moving = lines.where((line) => line.kind.changing).length;
     return ReadingRecord(
       id: 'liuyao-${createdAt.microsecondsSinceEpoch}',
       kind: ReadingKind.liuyao,
       createdAt: createdAt,
-      title: original.title,
+      title: title,
       summary: '${topic.label} · ${tone.label}${moving == 0 ? ' · 静卦' : ' · $moving 爻动'}',
       payload: {
         'lines': lines.map((line) => line.kind.sum).toList(),
@@ -156,6 +169,21 @@ class LiuyaoReading {
 }
 
 abstract final class LiuyaoEngine {
+  /// 按卦的上下卦纳甲，六亲相对本宫五行。
+  static List<NajiaLine> najiaLines(Hexagram hexagram, WuXing palaceElement) {
+    final ganzhi = [
+      ..._najia[hexagram.lower.name]!.lower,
+      ..._najia[hexagram.upper.name]!.upper,
+    ];
+    return [
+      for (final item in ganzhi)
+        NajiaLine(
+          ganzhi: item,
+          relative: _relative(palaceElement, elementOfBranch(item.substring(1))),
+        ),
+    ];
+  }
+
   static CoinThrow throwCoins(Random random) {
     return CoinThrow([
       for (var i = 0; i < 3; i++) random.nextBool(),

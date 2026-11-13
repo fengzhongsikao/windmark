@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
-import 'package:windmark/app/app_copy.dart';
 import 'package:windmark/app/theme.dart';
+import 'package:windmark/core/models/reading_record.dart';
 import 'package:windmark/features/history/history_controller.dart';
-import 'package:windmark/features/history/open_reading.dart';
+import 'package:windmark/features/profile/history_list_page.dart';
+import 'package:windmark/features/profile/user_profile.dart';
 import 'package:windmark/widgets/common.dart';
-import 'package:windmark/widgets/reading_tile.dart';
+import 'package:windmark/widgets/user_avatar.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -14,6 +16,8 @@ class ProfilePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final history = ref.watch(readingHistoryProvider);
+    final profile =
+        ref.watch(userProfileProvider).asData?.value ?? UserProfile.fallback;
     final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(title: const Text('我的')),
@@ -27,21 +31,40 @@ class ProfilePage extends ConsumerWidget {
               SectionCard(
                 child: Row(
                   children: [
-                    const SealMark(text: '问', size: 64),
+                    UserAvatar(
+                      profile: profile,
+                      onTap: () => _chooseAvatar(context, ref, profile),
+                    ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            AppCopy.name,
-                            style: textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w700,
+                          InkWell(
+                            key: const ValueKey('display-name'),
+                            onTap: () => _editName(context, ref, profile.name),
+                            child: Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    profile.name,
+                                    style: textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.edit_outlined,
+                                  size: 18,
+                                  color: AppColors.inkSoft,
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '共 ${records.length} 次占问',
+                            '共 ${records.length} 次排盘',
                             style: const TextStyle(color: AppColors.inkSoft),
                           ),
                         ],
@@ -51,63 +74,32 @@ class ProfilePage extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 18),
-              Row(
-                children: [
-                  Text(
-                    '占问记录',
-                    style: textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (records.isNotEmpty)
-                    TextButton(
-                      onPressed: () => _clear(context, ref),
-                      child: const Text('清空'),
-                    ),
-                ],
+              Text(
+                '排盘记录',
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-              if (records.isEmpty)
-                const Text(
-                  '还没有占问。首页可以进入梅花或六爻。',
-                  style: TextStyle(color: AppColors.inkSoft, height: 1.5),
-                )
-              else
-                for (final record in records) ...[
-                  Dismissible(
-                    key: ValueKey(record.id),
-                    direction: DismissDirection.endToStart,
-                    background: Container(
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 18),
-                      decoration: BoxDecoration(
-                        color: AppColors.cinnabar,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(Icons.delete_outline, color: Colors.white),
-                    ),
-                    onDismissed: (_) {
-                      ref.read(readingHistoryProvider.notifier).remove(record.id);
-                    },
-                    child: ReadingTile(
-                      record: record,
-                      onTap: () {
-                        try {
-                          openReading(context, record);
-                        } on Object {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('这条记录读不出来了')),
-                          );
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
+              const SizedBox(height: 10),
+              _RecordLink(
+                title: '梅花排盘记录',
+                count: records
+                    .where((record) => record.kind == ReadingKind.meihua)
+                    .length,
+                onTap: () => _openList(context, ReadingKind.meihua),
+              ),
+              const SizedBox(height: 8),
+              _RecordLink(
+                title: '六爻排盘记录',
+                count: records
+                    .where((record) => record.kind == ReadingKind.liuyao)
+                    .length,
+                onTap: () => _openList(context, ReadingKind.liuyao),
+              ),
               const SizedBox(height: 12),
               const _AboutTile(
                 title: '梅花易数',
-                body: '以先天八卦数起卦。时间起卦用农历的年支、月、日和时辰；也可以报数，或随缘取数。成卦后看本卦、互卦、变卦，再以不动的一卦为体、发动的一卦为用，看五行生克。',
+                body: '以先天八卦数起卦。可以按时间、手动指定上卦下卦和动爻、报一个三位数，或自动起卦。成卦后看本卦、互卦、变卦，再以不动的一卦为体、发动的一卦为用，看五行生克。',
               ),
               const _AboutTile(
                 title: '六爻纳甲',
@@ -122,30 +114,203 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  Future<void> _clear(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('清空记录'),
-          content: const Text('本地的占问记录会全部删除。'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('清空'),
-            ),
-          ],
-        );
-      },
+  void _openList(BuildContext context, ReadingKind kind) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => HistoryListPage(kind: kind)),
     );
-    if (confirmed != true || !context.mounted) {
+  }
+}
+
+class _RecordLink extends StatelessWidget {
+  const _RecordLink({
+    required this.title,
+    required this.count,
+    required this.onTap,
+  });
+
+  final String title;
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.line),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              Text(
+                '$count 条',
+                style: const TextStyle(color: AppColors.inkSoft),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.inkSoft),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _AvatarChoice { pick, reset }
+
+Future<void> _chooseAvatar(
+  BuildContext context,
+  WidgetRef ref,
+  UserProfile profile,
+) async {
+  final choice = await showModalBottomSheet<_AvatarChoice>(
+    context: context,
+    builder: (context) {
+      return SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('从相册选择'),
+              onTap: () => Navigator.pop(context, _AvatarChoice.pick),
+            ),
+            if (profile.avatarFile != null)
+              ListTile(
+                title: const Text('恢复默认头像'),
+                onTap: () => Navigator.pop(context, _AvatarChoice.reset),
+              ),
+          ],
+        ),
+      );
+    },
+  );
+  if (!context.mounted || choice == null) {
+    return;
+  }
+  if (choice == _AvatarChoice.reset) {
+    try {
+      await ref.read(userProfileProvider.notifier).clearAvatar();
+    } on Object {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('头像没有保存成功')));
+    }
+    return;
+  }
+  final image = await ImagePicker().pickImage(
+    source: ImageSource.gallery,
+    maxWidth: 1024,
+    imageQuality: 85,
+  );
+  if (image == null || !context.mounted) {
+    return;
+  }
+  try {
+    await ref
+        .read(userProfileProvider.notifier)
+        .saveAvatar(await image.readAsBytes());
+  } on Object {
+    if (!context.mounted) {
       return;
     }
-    await ref.read(readingHistoryProvider.notifier).clear();
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('头像没有保存成功')));
+  }
+}
+
+Future<void> _editName(
+  BuildContext context,
+  WidgetRef ref,
+  String current,
+) async {
+  final name = await showDialog<String>(
+    context: context,
+    builder: (context) => _NameDialog(initial: current),
+  );
+  if (name == null || !context.mounted) {
+    return;
+  }
+  try {
+    await ref.read(userProfileProvider.notifier).saveName(name);
+  } on Object {
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('用户名没有保存成功')));
+  }
+}
+
+class _NameDialog extends StatefulWidget {
+  const _NameDialog({required this.initial});
+
+  final String initial;
+
+  @override
+  State<_NameDialog> createState() => _NameDialogState();
+}
+
+class _NameDialogState extends State<_NameDialog> {
+  late final TextEditingController _name = TextEditingController(
+    text: widget.initial,
+  );
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _name.text.trim();
+    if (name.isEmpty) {
+      return;
+    }
+    Navigator.pop(context, name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ready = _name.text.trim().isNotEmpty;
+    return AlertDialog(
+      title: const Text('用户名'),
+      content: TextField(
+        key: const ValueKey('display-name-field'),
+        controller: _name,
+        autofocus: true,
+        maxLength: 20,
+        textInputAction: TextInputAction.done,
+        onChanged: (_) => setState(() {}),
+        onSubmitted: (_) => _submit(),
+        decoration: const InputDecoration(labelText: '用户名'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        TextButton(
+          key: const ValueKey('display-name-save'),
+          onPressed: ready ? _submit : null,
+          child: const Text('保存'),
+        ),
+      ],
+    );
   }
 }
 

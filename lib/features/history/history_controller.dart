@@ -17,8 +17,16 @@ class ReadingHistoryController extends AsyncNotifier<List<ReadingRecord>> {
   }
 
   Future<void> remove(String id) async {
+    await removeIds([id]);
+  }
+
+  Future<void> removeIds(Iterable<String> ids) async {
+    final drop = ids.toSet();
+    if (drop.isEmpty) {
+      return;
+    }
     final current = await future;
-    final next = current.where((record) => record.id != id).toList();
+    final next = current.where((record) => !drop.contains(record.id)).toList();
     await ref.read(historyStoreProvider).save(next);
     state = AsyncData(next);
   }
@@ -26,6 +34,13 @@ class ReadingHistoryController extends AsyncNotifier<List<ReadingRecord>> {
   Future<void> clear() async {
     await ref.read(historyStoreProvider).save(const []);
     state = const AsyncData([]);
+  }
+
+  Future<void> clearKind(ReadingKind kind) async {
+    final current = await future;
+    final next = current.where((record) => record.kind != kind).toList();
+    await ref.read(historyStoreProvider).save(next);
+    state = AsyncData(next);
   }
 }
 

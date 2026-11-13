@@ -3,7 +3,10 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:windmark/core/calendar/lunar_calendar.dart';
+import 'package:windmark/core/iching/gua_classic.dart';
 import 'package:windmark/core/iching/hexagram_book.dart';
+import 'package:windmark/core/iching/trigram.dart';
+import 'package:windmark/core/iching/hexagram_relation.dart';
 import 'package:windmark/core/iching/palace.dart';
 import 'package:windmark/core/iching/wuxing.dart';
 import 'package:windmark/core/models/reading_record.dart';
@@ -11,6 +14,8 @@ import 'package:windmark/features/liuyao/liuyao_engine.dart';
 import 'package:windmark/features/meihua/meihua_engine.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('农历', () {
     final newYears = {
       DateTime(2000, 2, 5): 2000,
@@ -64,7 +69,9 @@ void main() {
 
     test('2023 年有闰月', () {
       final found = List.generate(365, (index) {
-        return LunarCalendar.fromSolar(DateTime(2023, 1, 1).add(Duration(days: index)));
+        return LunarCalendar.fromSolar(
+          DateTime(2023, 1, 1).add(Duration(days: index)),
+        );
       }).any((lunar) => lunar?.isLeapMonth ?? false);
       expect(found, isTrue);
     });
@@ -108,9 +115,32 @@ void main() {
       expect(HexagramBook.byNumber(64).title, '火水未济');
     });
 
+    test('六冲卦与六合卦', () {
+      expect(HexagramRelations.of('乾'), '六冲卦');
+      expect(HexagramRelations.of('大壮'), '六冲卦');
+      expect(HexagramRelations.of('无妄'), '六冲卦');
+      expect(HexagramRelations.of('泰'), '六合卦');
+      expect(HexagramRelations.of('节'), '六合卦');
+      expect(HexagramRelations.of('屯'), isNull);
+      expect(HexagramRelations.chong.length, 10);
+      expect(HexagramRelations.he.length, 8);
+    });
+
     test('屯的互卦是剥', () {
       final tun = HexagramBook.byNumber(3).hexagram;
       expect(HexagramBook.of(tun.mutual).name, '剥');
+    });
+
+    test('卦辞爻辞按卦序读出', () async {
+      final book = await GuaTextBook.load();
+      final qian = book.byNumber(1)!;
+      expect(qian.guaCi, contains('元亨利贞'));
+      expect(qian.yaoCi[0], startsWith('初九'));
+      expect(qian.yaoCi[4], startsWith('九五'));
+      expect(qian.yaoCi[5], startsWith('上九'));
+      expect(qian.yaoCi.last, startsWith('用九'));
+      expect(book.byNumber(2)!.yaoCi.first, contains('履霜'));
+      expect(book.byNumber(64), isNotNull);
     });
 
     test('同一天的今日卦不变', () {
@@ -122,9 +152,7 @@ void main() {
   group('梅花', () {
     test('数字起卦按先天数取余', () {
       final cast = MeihuaEngine.numberCast(
-        upper: 9,
-        lower: 8,
-        moving: 6,
+        number: 986,
         at: DateTime(2026, 11, 13),
       )!;
       expect(cast.upper.name, '乾');
@@ -133,17 +161,42 @@ void main() {
       expect(cast.relation, BodyUseRelation.bodyGeneratesUse);
     });
 
+    test('个位除以 8 后仍落在六爻内', () {
+      final zero = MeihuaEngine.numberCast(
+        number: 170,
+        at: DateTime(2026, 11, 13),
+      )!;
+      expect(zero.upper.name, '乾');
+      expect(zero.lower.name, '艮');
+      expect(zero.movingLine, 2);
+      final seven = MeihuaEngine.numberCast(
+        number: 117,
+        at: DateTime(2026, 11, 13),
+      )!;
+      expect(seven.movingLine, 1);
+    });
+
     test('动爻在下卦时用卦为下卦', () {
       final cast = MeihuaEngine.numberCast(
-        upper: 1,
-        lower: 8,
-        moving: 1,
+        number: 181,
         at: DateTime(2026, 11, 13),
       )!;
       expect(cast.body.name, '乾');
       expect(cast.function.name, '坤');
       expect(cast.relation, BodyUseRelation.useGeneratesBody);
       expect(cast.originalEntry.title, '天地否');
+    });
+
+    test('坤卦上爻动变剥，错乾综坤', () {
+      final cast = MeihuaEngine.manualCast(
+        upper: Trigram.kun,
+        lower: Trigram.kun,
+        movingLine: 6,
+        at: DateTime(2026, 11, 13, 15, 20),
+      );
+      expect(HexagramBook.of(cast.changed).name, '剥');
+      expect(HexagramBook.of(cast.original.opposite).name, '乾');
+      expect(HexagramBook.of(cast.original.inverted).name, '坤');
     });
 
     test('丙午年正月初一子时为天泽履', () {
@@ -156,16 +209,18 @@ void main() {
 
     test('记录可以还原', () {
       final cast = MeihuaEngine.numberCast(
-        upper: 1,
-        lower: 8,
-        moving: 1,
+        number: 181,
         at: DateTime(2026, 1, 2, 8),
       )!;
-      final encoded = jsonDecode(jsonEncode(cast.toRecord().toJson())) as Map;
+      final encoded = jsonDecode(
+        jsonEncode(cast.withQuestion('近况').toRecord(title: '近况').toJson()),
+      ) as Map;
       final record = ReadingRecord.fromJson(Map<String, dynamic>.from(encoded));
       final restored = MeihuaCast.fromPayload(record.payload, record.createdAt);
       expect(restored.originalEntry.title, '天地否');
       expect(restored.movingLine, 1);
+      expect(restored.question, '近况');
+      expect(record.title, '近况');
     });
   });
 
@@ -249,12 +304,18 @@ void main() {
         question: '这笔收入',
         at: DateTime(2026, 6, 1, 15),
       );
-      final encoded = jsonDecode(jsonEncode(reading.toRecord().toJson())) as Map;
+      final encoded = jsonDecode(
+        jsonEncode(reading.toRecord(title: '这笔收入').toJson()),
+      ) as Map;
       final record = ReadingRecord.fromJson(Map<String, dynamic>.from(encoded));
-      final restored = LiuyaoReading.fromPayload(record.payload, record.createdAt);
+      final restored = LiuyaoReading.fromPayload(
+        record.payload,
+        record.createdAt,
+      );
       expect(restored.original.title, reading.original.title);
       expect(restored.topic, DivinationTopic.wealth);
       expect(restored.question, '这笔收入');
+      expect(record.title, '这笔收入');
     });
   });
 }

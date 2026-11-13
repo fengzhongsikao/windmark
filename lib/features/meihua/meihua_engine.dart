@@ -52,6 +52,7 @@ class MeihuaCast {
     required this.method,
     required this.detail,
     required this.createdAt,
+    this.question = '',
   });
 
   final Trigram upper;
@@ -60,6 +61,19 @@ class MeihuaCast {
   final String method;
   final String detail;
   final DateTime createdAt;
+  final String question;
+
+  MeihuaCast withQuestion(String question) {
+    return MeihuaCast(
+      upper: upper,
+      lower: lower,
+      movingLine: movingLine,
+      method: method,
+      detail: detail,
+      createdAt: createdAt,
+      question: question,
+    );
+  }
 
   Hexagram get original => Hexagram.fromTrigrams(lower, upper);
 
@@ -73,7 +87,8 @@ class MeihuaCast {
 
   Trigram get function => movingInUpper ? upper : lower;
 
-  BodyUseRelation get relation => BodyUseRelation.between(body.element, function.element);
+  BodyUseRelation get relation =>
+      BodyUseRelation.between(body.element, function.element);
 
   HexagramEntry get originalEntry => HexagramBook.of(original);
 
@@ -90,12 +105,12 @@ class MeihuaCast {
     ];
   }
 
-  ReadingRecord toRecord() {
+  ReadingRecord toRecord({required String title}) {
     return ReadingRecord(
       id: 'meihua-${createdAt.microsecondsSinceEpoch}',
       kind: ReadingKind.meihua,
       createdAt: createdAt,
-      title: originalEntry.title,
+      title: title,
       summary: '${relation.classicName} · ${relation.tone}',
       payload: {
         'upper': upper.number,
@@ -103,6 +118,7 @@ class MeihuaCast {
         'moving': movingLine,
         'method': method,
         'detail': detail,
+        'question': question,
       },
     );
   }
@@ -118,6 +134,7 @@ class MeihuaCast {
       method: payload['method']! as String,
       detail: payload['detail']! as String,
       createdAt: createdAt,
+      question: payload['question'] as String? ?? '',
     );
   }
 }
@@ -146,21 +163,37 @@ abstract final class MeihuaEngine {
     );
   }
 
-  static MeihuaCast? numberCast({
-    required int upper,
-    required int lower,
-    required int moving,
-    required DateTime at,
-  }) {
-    if (upper <= 0 || lower <= 0 || moving <= 0) {
+  static MeihuaCast? numberCast({required int number, required DateTime at}) {
+    if (number < 0 || number > 999) {
       return null;
     }
+    final digits = number.toString().padLeft(3, '0');
+    final hundreds = int.parse(digits[0]);
+    final tens = int.parse(digits[1]);
+    final units = int.parse(digits[2]);
     return MeihuaCast(
-      upper: Trigram.byNumber(upper),
-      lower: Trigram.byNumber(lower),
-      movingLine: _moving(moving),
+      upper: Trigram.byNumber(hundreds),
+      lower: Trigram.byNumber(tens),
+      movingLine: _movingFromEight(units),
       method: '数字起卦',
-      detail: '上卦数 $upper，下卦数 $lower，动爻数 $moving。',
+      detail: '数字 $digits。百位 $hundreds，十位 $tens，个位 $units。',
+      createdAt: at,
+    );
+  }
+
+  static MeihuaCast manualCast({
+    required Trigram upper,
+    required Trigram lower,
+    required int movingLine,
+    required DateTime at,
+  }) {
+    return MeihuaCast(
+      upper: upper,
+      lower: lower,
+      movingLine: movingLine,
+      method: '手动指定',
+      detail:
+          '上卦${upper.name}，下卦${lower.name}，${YaoPosition.names[movingLine - 1]}动。',
       createdAt: at,
     );
   }
@@ -170,7 +203,7 @@ abstract final class MeihuaEngine {
       upper: Trigram.byNumber(random.nextInt(8) + 1),
       lower: Trigram.byNumber(random.nextInt(8) + 1),
       movingLine: random.nextInt(6) + 1,
-      method: '随缘起卦',
+      method: '自动起卦',
       detail: '未取时间与报数，直接得到上卦、下卦和动爻。',
       createdAt: at,
     );
@@ -179,6 +212,13 @@ abstract final class MeihuaEngine {
   static int _moving(int value) {
     final remainder = value % 6;
     return remainder == 0 ? 6 : remainder;
+  }
+
+  /// 个位除以 8。余 0 当作 8；7、8 再减去 6，落到六爻之内。
+  static int _movingFromEight(int value) {
+    final remainder = value % 8;
+    final normalized = remainder == 0 ? 8 : remainder;
+    return normalized > 6 ? normalized - 6 : normalized;
   }
 }
 

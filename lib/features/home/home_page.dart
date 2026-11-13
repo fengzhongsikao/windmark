@@ -7,8 +7,10 @@ import 'package:windmark/core/iching/hexagram_book.dart';
 import 'package:windmark/core/models/reading_record.dart';
 import 'package:windmark/features/history/history_controller.dart';
 import 'package:windmark/features/history/open_reading.dart';
+import 'package:windmark/features/profile/user_profile.dart';
 import 'package:windmark/features/shell/app_tab.dart';
 import 'package:windmark/widgets/common.dart';
+import 'package:windmark/widgets/user_avatar.dart';
 import 'package:windmark/widgets/hexagram_figure.dart';
 import 'package:windmark/widgets/reading_tile.dart';
 
@@ -21,6 +23,8 @@ class HomePage extends ConsumerWidget {
     final lunar = LunarCalendar.fromSolar(now);
     final daily = HexagramBook.daily(now);
     final history = ref.watch(readingHistoryProvider);
+    final profile =
+        ref.watch(userProfileProvider).asData?.value ?? UserProfile.fallback;
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -30,7 +34,7 @@ class HomePage extends ConsumerWidget {
           children: [
             Row(
               children: [
-                const SealMark(text: '风'),
+                UserAvatar(profile: profile, size: 72, circle: false),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -109,26 +113,32 @@ class HomePage extends ConsumerWidget {
             const SizedBox(height: 22),
             Text(
               '开始占问',
-              style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 10),
             _MethodCard(
               title: '梅花易数',
-              detail: '用时间、数字或随缘起卦，看本卦、互卦、变卦和体用生克。',
+              detail: '用时间、手动、数字或自动起卦，看本卦、互卦、变卦和体用生克。',
               icon: Icons.filter_vintage_outlined,
-              onTap: () => ref.read(appTabProvider.notifier).select(AppTab.meihua),
+              onTap: () =>
+                  ref.read(appTabProvider.notifier).select(AppTab.meihua),
             ),
             const SizedBox(height: 10),
             _MethodCard(
               title: '六爻纳甲',
               detail: '铜钱摇六次，装世应、六亲、纳甲和当月旺衰。',
               icon: Icons.toll_outlined,
-              onTap: () => ref.read(appTabProvider.notifier).select(AppTab.liuyao),
+              onTap: () =>
+                  ref.read(appTabProvider.notifier).select(AppTab.liuyao),
             ),
             const SizedBox(height: 22),
             Text(
               '最近占问',
-              style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 10),
             history.when(
@@ -167,9 +177,8 @@ class HomePage extends ConsumerWidget {
     try {
       openReading(context, record);
     } on Object {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('这条记录读不出来了')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('这条记录读不出来了')));
     }
   }
 
@@ -188,9 +197,8 @@ class HomePage extends ConsumerWidget {
                 const SizedBox(height: 12),
                 Text(
                   '第 ${entry.number} 卦 · ${entry.title}',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -282,7 +290,11 @@ class _MethodCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.inkSoft),
+              const Icon(
+                Icons.arrow_forward_ios,
+                size: 14,
+                color: AppColors.inkSoft,
+              ),
             ],
           ),
         ),

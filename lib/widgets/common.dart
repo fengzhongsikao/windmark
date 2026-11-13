@@ -8,16 +8,18 @@ class SectionCard extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
+    this.color = AppColors.card,
   });
 
   final Widget child;
   final EdgeInsets padding;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: color,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.line),
       ),
@@ -33,10 +35,8 @@ class DisclaimerNote extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       AppCopy.disclaimer,
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-        color: AppColors.inkSoft,
-        height: 1.5,
-      ),
+      style: Theme.of(context).textTheme.bodySmall
+          ?.copyWith(color: AppColors.inkSoft, height: 1.5),
     );
   }
 }
