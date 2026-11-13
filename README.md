@@ -1,17 +1,44 @@
-# windmark
+# 风痕
 
-A new Flutter project.
+梅花易数与六爻纳甲。按农历看今日卦，起卦后排本卦、互卦、变卦，或装世应、六亲、纳甲和月令旺衰。记录留在本机。
 
-## Getting Started
+<p align="center">
+  <img src="readme/home.png" width="200" alt="首页：问候、农历和今日卦" />
+  <img src="readme/meihua.png" width="200" alt="梅花易数：时间起卦" />
+  <img src="readme/liuyao.png" width="200" alt="六爻纳甲：自动起卦" />
+  <img src="readme/mine.png" width="200" alt="我的：排盘记录" />
+</p>
 
-This project is a starting point for a Flutter application.
+## 首页
 
-A few resources to get you started if this is your first Flutter project:
+按时间问好，并显示公历、农历和今日卦。从这里进入梅花或六爻。起过的卦会出现在最近占问里。
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## 梅花易数
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+用先天八卦数起卦，支持四种方式：
+
+- 时间起卦：按农历年月日与时辰
+- 手动指定：自己选上卦、下卦和动爻
+- 数字起卦：报一个三位数
+- 自动起卦
+
+成卦后看本卦、互卦、变卦，再以不动的一卦为体、发动的一卦为用，看五行生克。
+
+## 六爻纳甲
+
+三枚铜钱摇六次，从初爻装到上爻。背为阳、字为阴：一背二字为少阳，两背一字为少阴，三背为老阳，三字为老阴。老阳、老阴是变爻。
+
+可以自己逐爻摇，也可以手动指定或一次起出六爻。装好世应、纳甲、六亲、六神和当月旺衰。所问可选综合、事业、财运、感情、健康、出行。
+
+## 我的
+
+可以改名字和头像，查看梅花、六爻的排盘记录，并阅读两种起卦方式的说明。
+
+卦象只供传统文化体验和娱乐，不能代替医疗、法律、财务或其他专业判断。
+
+## 运行
+
+```bash
+flutter pub get
+flutter run
+```
