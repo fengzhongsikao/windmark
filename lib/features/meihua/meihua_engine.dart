@@ -163,20 +163,55 @@ abstract final class MeihuaEngine {
     );
   }
 
-  static MeihuaCast? numberCast({required int number, required DateTime at}) {
-    if (number < 0 || number > 999) {
+  /// 数字个数为偶则平分，为奇则前半比后半少一位。两半数字之和除以 8 为上下卦，卦数相加除以 6 为动爻。
+  static MeihuaCast? numberGroupCast({
+    required String digits,
+    required DateTime at,
+    bool addHour = false,
+  }) {
+    if (!_digitsOnly(digits)) {
       return null;
     }
-    final digits = number.toString().padLeft(3, '0');
-    final hundreds = int.parse(digits[0]);
-    final tens = int.parse(digits[1]);
-    final units = int.parse(digits[2]);
+    final frontCount = digits.length.isEven
+        ? digits.length ~/ 2
+        : (digits.length - 1) ~/ 2;
+    final front = digits.substring(0, frontCount);
+    final back = digits.substring(frontCount);
+    final frontSum = _digitSum(front);
+    final backSum = _digitSum(back);
+    final upper = Trigram.byNumber(frontSum);
+    final lower = Trigram.byNumber(backSum);
     return MeihuaCast(
-      upper: Trigram.byNumber(hundreds),
-      lower: Trigram.byNumber(tens),
-      movingLine: _movingFromEight(units),
-      method: '数字起卦',
-      detail: '数字 $digits。百位 $hundreds，十位 $tens，个位 $units。',
+      upper: upper,
+      lower: lower,
+      movingLine: _moving(
+        upper.number + lower.number + _hourOffset(at, addHour),
+      ),
+      method: '数字起卦1',
+      detail:
+          '数字 $digits。前半${front.isEmpty ? '为空' : front}，和为 $frontSum；后半 $back，和为 $backSum。${_hourNote(addHour)}',
+      createdAt: at,
+    );
+  }
+
+  /// 第 1 数除以 8 为上卦，第 2 数除以 8 为下卦，第 3 数除以 6 为动爻。
+  static MeihuaCast? numberTripleCast({
+    required String digits,
+    required DateTime at,
+    bool addHour = false,
+  }) {
+    if (digits.length != 3 || !_digitsOnly(digits)) {
+      return null;
+    }
+    final first = int.parse(digits[0]);
+    final second = int.parse(digits[1]);
+    final third = int.parse(digits[2]);
+    return MeihuaCast(
+      upper: Trigram.byNumber(first),
+      lower: Trigram.byNumber(second),
+      movingLine: _moving(third + _hourOffset(at, addHour)),
+      method: '数字起卦2',
+      detail: '数字 $digits。第 1 数 $first，第 2 数 $second，第 3 数 $third。${_hourNote(addHour)}',
       createdAt: at,
     );
   }
@@ -209,16 +244,29 @@ abstract final class MeihuaEngine {
     );
   }
 
+  static bool _digitsOnly(String digits) {
+    return digits.isNotEmpty && !digits.contains(RegExp(r'\D'));
+  }
+
+  static int _digitSum(String digits) {
+    var sum = 0;
+    for (final digit in digits.codeUnits) {
+      sum += digit - 48;
+    }
+    return sum;
+  }
+
+  static int _hourOffset(DateTime at, bool addHour) {
+    return addHour ? hourBranchNumber(at.hour) : 0;
+  }
+
+  static String _hourNote(bool addHour) {
+    return addHour ? '动爻加时辰。' : '';
+  }
+
   static int _moving(int value) {
     final remainder = value % 6;
     return remainder == 0 ? 6 : remainder;
-  }
-
-  /// 个位除以 8。余 0 当作 8；7、8 再减去 6，落到六爻之内。
-  static int _movingFromEight(int value) {
-    final remainder = value % 8;
-    final normalized = remainder == 0 ? 8 : remainder;
-    return normalized > 6 ? normalized - 6 : normalized;
   }
 }
 

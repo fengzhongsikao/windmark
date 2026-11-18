@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:windmark/app/theme.dart';
 import 'package:windmark/core/models/reading_record.dart';
 import 'package:windmark/features/history/history_controller.dart';
+import 'package:windmark/features/profile/about_page.dart';
+import 'package:windmark/features/profile/app_update.dart';
+import 'package:windmark/features/profile/divination_explain_page.dart';
 import 'package:windmark/features/profile/history_list_page.dart';
 import 'package:windmark/features/profile/user_profile.dart';
 import 'package:windmark/widgets/common.dart';
@@ -26,87 +30,119 @@ class ProfilePage extends ConsumerWidget {
         error: (error, stackTrace) => const Center(child: Text('记录暂时读不出来')),
         data: (records) {
           return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+            padding: const EdgeInsets.only(bottom: 28),
             children: [
-              SectionCard(
-                child: Row(
-                  children: [
-                    UserAvatar(
-                      profile: profile,
-                      onTap: () => _chooseAvatar(context, ref, profile),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          InkWell(
-                            key: const ValueKey('display-name'),
-                            onTap: () => _editName(context, ref, profile.name),
-                            child: Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    profile.name,
-                                    style: textTheme.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.w700,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                child: SectionCard(
+                  child: Row(
+                    children: [
+                      UserAvatar(
+                        profile: profile,
+                        onTap: () => _chooseAvatar(context, ref, profile),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            InkWell(
+                              key: const ValueKey('display-name'),
+                              onTap: () =>
+                                  _editName(context, ref, profile.name),
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      profile.name,
+                                      style: textTheme.titleLarge?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 4),
-                                const Icon(
-                                  Icons.edit_outlined,
-                                  size: 18,
-                                  color: AppColors.inkSoft,
-                                ),
-                              ],
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    Icons.edit_outlined,
+                                    size: 18,
+                                    color: AppColors.inkSoft,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '共 ${records.length} 次排盘',
-                            style: const TextStyle(color: AppColors.inkSoft),
-                          ),
-                        ],
+                            const SizedBox(height: 4),
+                            Text(
+                              '共 ${records.length} 次排盘',
+                              style: const TextStyle(color: AppColors.inkSoft),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 18),
-              Text(
-                '排盘记录',
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  '排盘记录',
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
-              _RecordLink(
-                title: '梅花排盘记录',
-                count: records
-                    .where((record) => record.kind == ReadingKind.meihua)
-                    .length,
-                onTap: () => _openList(context, ReadingKind.meihua),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _RecordLink(
+                  title: '梅花排盘记录',
+                  count: records
+                      .where((record) => record.kind == ReadingKind.meihua)
+                      .length,
+                  onTap: () => _openList(context, ReadingKind.meihua),
+                ),
               ),
               const SizedBox(height: 8),
-              _RecordLink(
-                title: '六爻排盘记录',
-                count: records
-                    .where((record) => record.kind == ReadingKind.liuyao)
-                    .length,
-                onTap: () => _openList(context, ReadingKind.liuyao),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _RecordLink(
+                  title: '六爻排盘记录',
+                  count: records
+                      .where((record) => record.kind == ReadingKind.liuyao)
+                      .length,
+                  onTap: () => _openList(context, ReadingKind.liuyao),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  '设置',
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _SettingsGroup(
+                onExplain: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const DivinationExplainPage(),
+                    ),
+                  );
+                },
+                onAbout: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const AboutPage()),
+                  );
+                },
               ),
               const SizedBox(height: 12),
-              const _AboutTile(
-                title: '梅花易数',
-                body: '以先天八卦数起卦。可以按时间、手动指定上卦下卦和动爻、报一个三位数，或自动起卦。成卦后看本卦、互卦、变卦，再以不动的一卦为体、发动的一卦为用，看五行生克。',
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: DisclaimerNote(),
               ),
-              const _AboutTile(
-                title: '六爻纳甲',
-                body: '三枚铜钱摇六次，从初爻装到上爻。背为阳、字为阴：一背二字为少阳，两背一字为少阴，三背为老阳，三字为老阴。老阳、老阴是变爻。再按卦宫装世应，按上下卦纳甲，配六亲、六神和月令旺衰。',
-              ),
-              const SizedBox(height: 8),
-              const DisclaimerNote(),
             ],
           );
         },
@@ -314,28 +350,92 @@ class _NameDialogState extends State<_NameDialog> {
   }
 }
 
-class _AboutTile extends StatelessWidget {
-  const _AboutTile({required this.title, required this.body});
+class _SettingsGroup extends StatefulWidget {
+  const _SettingsGroup({required this.onExplain, required this.onAbout});
 
-  final String title;
-  final String body;
+  final VoidCallback onExplain;
+  final VoidCallback onAbout;
+
+  @override
+  State<_SettingsGroup> createState() => _SettingsGroupState();
+}
+
+class _SettingsGroupState extends State<_SettingsGroup> {
+  late final Future<PackageInfo> _info = PackageInfo.fromPlatform();
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
-        tilePadding: EdgeInsets.zero,
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              body,
-              style: const TextStyle(color: AppColors.inkSoft, height: 1.55),
+    return FutureBuilder<PackageInfo>(
+      future: _info,
+      builder: (context, snapshot) {
+        final version = snapshot.data?.version ?? '';
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Material(
+            color: AppColors.card,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: const BorderSide(color: AppColors.line),
+            ),
+            child: Column(
+              children: [
+                _SettingRow(
+                  title: '版本更新',
+                  value: version,
+                  onTap: () => checkForUpdate(context),
+                ),
+                const Divider(height: 1, thickness: 1, color: AppColors.line),
+                _SettingRow(title: '占卜解释', onTap: widget.onExplain),
+                const Divider(height: 1, thickness: 1, color: AppColors.line),
+                _SettingRow(title: '关于我们', onTap: widget.onAbout),
+              ],
             ),
           ),
-        ],
+        );
+      },
+    );
+  }
+}
+
+class _SettingRow extends StatelessWidget {
+  const _SettingRow({
+    required this.title,
+    required this.onTap,
+    this.value = '',
+  });
+
+  final String title;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        child: Row(
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
+              ),
+            ),
+            const Spacer(),
+            if (value.isNotEmpty) ...[
+              Text(
+                value,
+                style: const TextStyle(fontSize: 15, color: AppColors.inkSoft),
+              ),
+              const SizedBox(width: 4),
+            ],
+            const Icon(Icons.chevron_right, color: AppColors.inkSoft),
+          ],
+        ),
       ),
     );
   }

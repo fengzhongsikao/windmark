@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:windmark/app/app_copy.dart';
 import 'package:windmark/app/windmark_app.dart';
 import 'package:windmark/core/storage/history_store.dart';
 import 'package:windmark/features/liuyao/liuyao_engine.dart';
 import 'package:windmark/features/liuyao/liuyao_page.dart';
 import 'package:windmark/features/profile/history_list_page.dart';
+import 'package:windmark/features/profile/profile_page.dart';
 import 'package:windmark/features/profile/user_profile.dart';
 
 void main() {
@@ -165,6 +168,44 @@ void main() {
     await tester.pumpAndSettle();
     expect(_onHistory('六爻近况'), findsNothing);
     expect(_onHistory('手动六爻'), findsOneWidget);
+  });
+
+  testWidgets('关于页显示版本、图标和 GitHub', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    PackageInfo.setMockInitialValues(
+      appName: '风痕',
+      packageName: 'com.wind.windmark',
+      version: '1.0.6',
+      buildNumber: '6',
+      buildSignature: '',
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          historyStoreProvider.overrideWithValue(MemoryHistoryStore()),
+          userProfileStoreProvider.overrideWithValue(MemoryUserProfileStore()),
+        ],
+        child: const MaterialApp(home: ProfilePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('版本更新'), findsOneWidget);
+    expect(find.text('1.0.6'), findsOneWidget);
+    await tester.tap(find.text('占卜解释'));
+    await tester.pumpAndSettle();
+    expect(find.text('梅花易数'), findsOneWidget);
+    expect(find.text('六爻纳甲'), findsOneWidget);
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('关于我们'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('about-icon')), findsOneWidget);
+    expect(find.byKey(const ValueKey('about-github-icon')), findsOneWidget);
+    expect(find.text('梅花易数 · 六爻纳甲'), findsOneWidget);
+    expect(find.text(AppCopy.githubUrl), findsOneWidget);
   });
 }
 

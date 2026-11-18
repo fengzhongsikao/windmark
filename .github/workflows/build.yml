@@ -50,7 +50,7 @@ jobs:
           fi
 
   android:
-    name: Android APK / AAB
+    name: Android APK
     needs: version
     if: needs.version.outputs.changed == 'true'
     runs-on: ubuntu-latest
@@ -110,11 +110,10 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build split APKs and AAB
+      - name: Build split APKs
         run: |
           set -euo pipefail
           flutter build apk --release --split-per-abi
-          flutter build appbundle --release
 
       - name: Collect artifacts
         run: |
@@ -133,7 +132,6 @@ jobs:
             abi=${abi%-release}
             cp "$apk" "dist/windmark-${version}-${abi}.apk"
           done
-          cp build/app/outputs/bundle/release/app-release.aab "dist/windmark-${version}.aab"
           echo "APK 按架构分包：$(printf '%s\n' dist/*.apk | xargs -n1 basename | paste -sd '、' -)" >> "$GITHUB_STEP_SUMMARY"
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
             echo "Android 使用正式签名" >> "$GITHUB_STEP_SUMMARY"

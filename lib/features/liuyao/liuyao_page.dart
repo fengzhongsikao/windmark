@@ -1,24 +1,37 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:windmark/app/random_provider.dart';
 import 'package:windmark/app/theme.dart';
 import 'package:windmark/core/iching/hexagram.dart';
 import 'package:windmark/features/liuyao/liuyao_engine.dart';
+import 'package:windmark/features/meihua/meihua_engine.dart';
 import 'package:windmark/features/liuyao/liuyao_result_page.dart';
-import 'package:windmark/widgets/common.dart';
 
 enum _CastMode {
   manual('手动指定'),
   shake('在线摇卦'),
-  auto('自动起卦');
+  auto('自动起卦'),
+  numberGroup('数字起卦1'),
+  numberTriple('数字起卦2'),
+  time('时间起卦');
 
   const _CastMode(this.label);
 
   final String label;
 }
+
+const _groupRule =
+    '起卦算法：一组数字个数为偶数，则平分为二。前一半数字之和除以 8 的余数为上卦，后一半之和除以 8 的余数为下卦，上下卦数加时辰数除以 6 的余数为动爻。数字个数为奇时，前半比后半少一位。余数 0，卦当作 8，动爻当作 6。有学者认为数字起卦不属于正宗六爻起卦方法。';
+
+const _tripleRule =
+    '起卦算法：第 1 数除以 8 的余数为上卦，第 2 数除以 8 的余数为下卦，第 3 数除以 6 的余数为动爻。余数 0，卦当作 8，动爻当作 6。有学者认为数字起卦不属于正宗六爻起卦方法。';
+
+const _timeRule =
+    '起卦算法（月日数为农历）：上卦为年支数、月数、日数之和除以 8 的余数；下卦再加时支数，除以 8；动爻为同一和除以 6 的余数。余数 0，卦当作 8，动爻当作 6。有学者认为时间起卦属于梅花易数，而不是正宗六爻。';
 
 const _yaoOptions = [
   YaoKind.youngYin,
@@ -36,15 +49,16 @@ class LiuyaoPage extends ConsumerStatefulWidget {
 
 class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
   final _question = TextEditingController();
+  final _number = TextEditingController();
   final List<YaoKind> _shaken = [];
   final List<YaoKind> _autoLines = [];
   final List<YaoKind?> _picked = List<YaoKind?>.filled(6, null);
 
   _CastMode _mode = _CastMode.auto;
-  DivinationTopic _topic = DivinationTopic.general;
   List<bool> _faces = const [true, false, true];
   bool _shaking = false;
   bool _saving = false;
+  String? _numberError;
   int _shakeToken = 0;
   Timer? _timer;
 
@@ -52,6 +66,7 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
   void dispose() {
     _timer?.cancel();
     _question.dispose();
+    _number.dispose();
     super.dispose();
   }
 
@@ -73,6 +88,7 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
               setState(() {
                 _mode = mode;
                 _shaking = false;
+                _numberError = null;
               });
             },
           ),
@@ -81,46 +97,31 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
             _CastMode.manual => '少阳、少阴不变，老阳、老阴为变爻。',
             _CastMode.shake => '自己摇铜钱。背为阳、字为阴。一背二字是少阳，两背一字是少阴，三背是老阳，三字是老阴。',
             _CastMode.auto => '一次起出六爻，不用逐爻手摇。',
+            _CastMode.numberGroup => '报一组数字，再加当前时辰，得到上卦、下卦和动爻。',
+            _CastMode.numberTriple => '报一个三位数，得到上卦、下卦和动爻。',
+            _CastMode.time => '按农历年支、月、日和时辰起卦。',
           }, style: const TextStyle(color: AppColors.inkSoft, height: 1.5)),
           const SizedBox(height: 14),
           TextField(
             key: const ValueKey('liuyao-question'),
             controller: _question,
             textInputAction: TextInputAction.done,
-            onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(
               labelText: '所问',
-              hintText: '写下所问之事',
+              hintText: '选填',
             ),
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final topic in DivinationTopic.values)
-                ChoiceChip(
-                  label: Text(topic.label),
-                  selected: _topic == topic,
-                  showCheckmark: false,
-                  selectedColor: AppColors.cinnabar,
-                  labelStyle: TextStyle(
-                    color: _topic == topic ? Colors.white : AppColors.ink,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  onSelected: _shaking
-                      ? null
-                      : (_) => setState(() => _topic = topic),
-                ),
-            ],
           ),
           const SizedBox(height: 18),
           if (_mode == _CastMode.manual)
             ..._manualCasting()
           else if (_mode == _CastMode.shake)
             ..._shakeCasting()
+          else if (_mode == _CastMode.auto)
+            ..._autoCasting()
+          else if (_mode == _CastMode.time)
+            ..._timeCasting()
           else
-            ..._autoCasting(),
+            ..._numberCasting(_mode == _CastMode.numberTriple),
         ],
       ),
     );
@@ -155,15 +156,11 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
             child: const Text('清空'),
           ),
         ),
-      FillQuestionTap(
-        blocked: !_saving && !_hasQuestion,
-        onBlocked: _promptQuestion,
-        child: FilledButton(
-          onPressed: _saving || !ready || !_hasQuestion
-              ? null
-              : () => _finish([for (final line in _picked) line!]),
-          child: const Text('解卦'),
-        ),
+      FilledButton(
+        onPressed: _saving || !ready
+            ? null
+            : () => _finish([for (final line in _picked) line!]),
+        child: const Text('解卦'),
       ),
     ];
   }
@@ -184,13 +181,9 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
       Center(child: _CastingTablet(lines: _shaken)),
       const SizedBox(height: 16),
       if (_shaken.length < 6)
-        FillQuestionTap(
-          blocked: !_shaking && !_hasQuestion,
-          onBlocked: _promptQuestion,
-          child: FilledButton(
-            onPressed: _shaking || !_hasQuestion ? null : _shakeOne,
-            child: const Text('摇一爻'),
-          ),
+        FilledButton(
+          onPressed: _shaking ? null : _shakeOne,
+          child: const Text('摇一爻'),
         )
       else
         Row(
@@ -203,15 +196,9 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: FillQuestionTap(
-                blocked: !_saving && !_hasQuestion,
-                onBlocked: _promptQuestion,
-                child: FilledButton(
-                  onPressed: _saving || !_hasQuestion
-                      ? null
-                      : () => _finish(_shaken),
-                  child: const Text('解卦'),
-                ),
+              child: FilledButton(
+                onPressed: _saving ? null : () => _finish(_shaken),
+                child: const Text('解卦'),
               ),
             ),
           ],
@@ -224,13 +211,9 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
       Center(child: _CastingTablet(lines: _autoLines)),
       const SizedBox(height: 16),
       if (_autoLines.length < 6)
-        FillQuestionTap(
-          blocked: !_hasQuestion,
-          onBlocked: _promptQuestion,
-          child: FilledButton(
-            onPressed: !_hasQuestion ? null : _fillAll,
-            child: const Text('一键起卦'),
-          ),
+        FilledButton(
+          onPressed: _fillAll,
+          child: const Text('一键起卦'),
         )
       else
         Row(
@@ -243,15 +226,9 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: FillQuestionTap(
-                blocked: !_saving && !_hasQuestion,
-                onBlocked: _promptQuestion,
-                child: FilledButton(
-                  onPressed: _saving || !_hasQuestion
-                      ? null
-                      : () => _finish(_autoLines),
-                  child: const Text('解卦'),
-                ),
+              child: FilledButton(
+                onPressed: _saving ? null : () => _finish(_autoLines),
+                child: const Text('解卦'),
               ),
             ),
           ],
@@ -260,7 +237,7 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
   }
 
   Future<void> _shakeOne() async {
-    if (_shaking || _shaken.length >= 6 || !_hasQuestion) {
+    if (_shaking || _shaken.length >= 6) {
       return;
     }
     final token = ++_shakeToken;
@@ -289,9 +266,6 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
   }
 
   void _fillAll() {
-    if (!_hasQuestion) {
-      return;
-    }
     final random = ref.read(randomProvider);
     final casts = [for (var i = 0; i < 6; i++) LiuyaoEngine.throwCoins(random)];
     setState(() {
@@ -301,26 +275,103 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
     });
   }
 
-  bool get _hasQuestion => _question.text.trim().isNotEmpty;
-
-  void _promptQuestion() {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.clearSnackBars();
-    messenger.showSnackBar(const SnackBar(content: Text('请填写所问之事')));
+  List<Widget> _numberCasting(bool triple) {
+    return [
+      TextField(
+        controller: _number,
+        keyboardType: TextInputType.number,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(triple ? 3 : 32),
+        ],
+        decoration: InputDecoration(
+          labelText: triple ? '请输入一个三位的数字' : '请输入起卦数字',
+          hintText: triple ? '例如 986' : '例如 1234',
+          counterText: '',
+        ),
+      ),
+      const SizedBox(height: 10),
+      Text(
+        triple ? _tripleRule : _groupRule,
+        style: const TextStyle(color: AppColors.inkSoft, height: 1.5),
+      ),
+      if (_numberError != null) ...[
+        const SizedBox(height: 8),
+        Text(_numberError!, style: const TextStyle(color: AppColors.cinnabar)),
+      ],
+      const SizedBox(height: 16),
+      FilledButton(
+        onPressed: _saving ? null : _submitDerived,
+        child: const Text('解卦'),
+      ),
+    ];
   }
 
-  Future<void> _finish(List<YaoKind> lines) async {
-    if (_saving || lines.length != 6 || !_hasQuestion) {
+  List<Widget> _timeCasting() {
+    return [
+      const Text(
+        _timeRule,
+        style: TextStyle(color: AppColors.inkSoft, height: 1.5),
+      ),
+      const SizedBox(height: 16),
+      FilledButton(
+        onPressed: _saving ? null : _submitDerived,
+        child: const Text('解卦'),
+      ),
+    ];
+  }
+
+  void _submitDerived() {
+    final at = DateTime.now();
+    final cast = switch (_mode) {
+      _CastMode.numberGroup => MeihuaEngine.numberGroupCast(
+        digits: _number.text,
+        at: at,
+        addHour: true,
+      ),
+      _CastMode.numberTriple => MeihuaEngine.numberTripleCast(
+        digits: _number.text,
+        at: at,
+      ),
+      _CastMode.time => MeihuaEngine.timeCast(at),
+      _ => null,
+    };
+    if (cast == null) {
+      if (_mode == _CastMode.time) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('这个日期无法换算农历')),
+        );
+        return;
+      }
+      setState(
+        () => _numberError = _mode == _CastMode.numberGroup
+            ? '请输入起卦数字'
+            : '请输入一个三位的数字',
+      );
+      return;
+    }
+    setState(() => _numberError = null);
+    _finish(
+      LiuyaoEngine.linesFromTrigrams(
+        lower: cast.lower,
+        upper: cast.upper,
+        movingLine: cast.movingLine,
+      ),
+      at: at,
+    );
+  }
+
+  Future<void> _finish(List<YaoKind> lines, {DateTime? at}) async {
+    if (_saving || lines.length != 6) {
       return;
     }
     setState(() => _saving = true);
     try {
       final reading = LiuyaoEngine.interpret(
         lines: List<YaoKind>.of(lines),
-        topic: _topic,
         question: _question.text.trim(),
         method: _mode.label,
-        at: DateTime.now(),
+        at: at ?? DateTime.now(),
       );
       if (!mounted) {
         return;

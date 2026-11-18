@@ -157,35 +157,64 @@ void main() {
   });
 
   group('梅花', () {
-    test('数字起卦按先天数取余', () {
-      final cast = MeihuaEngine.numberCast(
-        number: 986,
+    test('数字起卦2按三位取余', () {
+      final cast = MeihuaEngine.numberTripleCast(
+        digits: '986',
         at: DateTime(2026, 11, 13),
       )!;
       expect(cast.upper.name, '乾');
       expect(cast.lower.name, '坤');
       expect(cast.movingLine, 6);
+      expect(cast.method, '数字起卦2');
       expect(cast.relation, BodyUseRelation.bodyGeneratesUse);
     });
 
-    test('个位除以 8 后仍落在六爻内', () {
-      final zero = MeihuaEngine.numberCast(
-        number: 170,
+    test('数字起卦2的第三位除以 6', () {
+      final zero = MeihuaEngine.numberTripleCast(
+        digits: '170',
         at: DateTime(2026, 11, 13),
       )!;
       expect(zero.upper.name, '乾');
       expect(zero.lower.name, '艮');
-      expect(zero.movingLine, 2);
-      final seven = MeihuaEngine.numberCast(
-        number: 117,
+      expect(zero.movingLine, 6);
+      final seven = MeihuaEngine.numberTripleCast(
+        digits: '117',
         at: DateTime(2026, 11, 13),
       )!;
       expect(seven.movingLine, 1);
     });
 
+    test('数字起卦1按奇偶划分', () {
+      final even = MeihuaEngine.numberGroupCast(
+        digits: '1234',
+        at: DateTime(2026, 11, 13),
+      )!;
+      expect(even.upper.name, '离');
+      expect(even.lower.name, '艮');
+      expect(even.movingLine, 4);
+      final odd = MeihuaEngine.numberGroupCast(
+        digits: '12345',
+        at: DateTime(2026, 11, 13),
+      )!;
+      expect(odd.upper.name, '离');
+      expect(odd.lower.name, '震');
+      expect(odd.movingLine, 1);
+      expect(odd.method, '数字起卦1');
+    });
+
+    test('动爻可以加上时辰', () {
+      final cast = MeihuaEngine.numberTripleCast(
+        digits: '181',
+        at: DateTime(2026, 11, 13, 15),
+        addHour: true,
+      )!;
+      expect(cast.movingLine, 4);
+      expect(cast.detail, contains('动爻加时辰'));
+    });
+
     test('动爻在下卦时用卦为下卦', () {
-      final cast = MeihuaEngine.numberCast(
-        number: 181,
+      final cast = MeihuaEngine.numberTripleCast(
+        digits: '181',
         at: DateTime(2026, 11, 13),
       )!;
       expect(cast.body.name, '乾');
@@ -214,26 +243,20 @@ void main() {
       expect(cast.originalEntry.title, '天泽履');
     });
 
-    testWidgets('未填所问时点击起卦会提示', (tester) async {
+    testWidgets('未填所问也可以起卦', (tester) async {
       await tester.pumpWidget(
         const ProviderScope(child: MaterialApp(home: MeihuaPage())),
       );
-      await tester.tap(find.byType(FillQuestionTap));
-      await tester.pump();
-      expect(find.text('请填写所问之事'), findsOneWidget);
-
-      await tester.tap(find.byKey(const ValueKey('meihua-mode')));
+      expect(find.text('选填'), findsOneWidget);
+      await tester.tap(find.text('起卦'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('手动指定').last);
-      await tester.pumpAndSettle();
-      await tester.tap(find.byType(FillQuestionTap));
-      await tester.pump();
-      expect(find.text('请填写所问之事'), findsOneWidget);
+      expect(find.text('请填写所问之事'), findsNothing);
+      expect(find.text('【本卦】'), findsOneWidget);
     });
 
     testWidgets('梅花详情显示起卦方式', (tester) async {
-      final cast = MeihuaEngine.numberCast(
-        number: 181,
+      final cast = MeihuaEngine.numberTripleCast(
+        digits: '181',
         at: DateTime(2026, 1, 2, 8),
       )!.withQuestion('近况');
       await tester.pumpWidget(
@@ -244,13 +267,13 @@ void main() {
         ),
       );
       expect(find.text('起卦方式'), findsOneWidget);
-      expect(find.text('【数字起卦】181'), findsOneWidget);
+      expect(find.text('【数字起卦2】181'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
     test('记录可以还原', () {
-      final cast = MeihuaEngine.numberCast(
-        number: 181,
+      final cast = MeihuaEngine.numberTripleCast(
+        digits: '181',
         at: DateTime(2026, 1, 2, 8),
       )!;
       final encoded = jsonDecode(
@@ -270,7 +293,6 @@ void main() {
       final at = DateTime(2000, 1, 1, 9);
       final reading = LiuyaoEngine.interpret(
         lines: List.filled(6, YaoKind.youngYang),
-        topic: DivinationTopic.general,
         question: '近况',
         at: at,
       );
@@ -298,7 +320,7 @@ void main() {
       );
     });
 
-    testWidgets('未填所问时点击起卦会提示', (tester) async {
+    testWidgets('未填所问也可以起卦', (tester) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -306,25 +328,13 @@ void main() {
       await tester.pumpWidget(
         const ProviderScope(child: MaterialApp(home: LiuyaoPage())),
       );
-      await tester.tap(find.byType(FillQuestionTap));
-      await tester.pump();
-      expect(find.text('请填写所问之事'), findsOneWidget);
-
-      await tester.tap(find.byKey(const ValueKey('cast-mode')));
+      expect(find.text('选填'), findsOneWidget);
+      await tester.tap(find.text('一键起卦'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('在线摇卦').last);
+      await tester.tap(find.text('解卦'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(FillQuestionTap));
-      await tester.pump();
-      expect(find.text('请填写所问之事'), findsOneWidget);
-
-      await tester.tap(find.byKey(const ValueKey('cast-mode')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('手动指定').last);
-      await tester.pumpAndSettle();
-      await tester.tap(find.byType(FillQuestionTap));
-      await tester.pump();
-      expect(find.text('请填写所问之事'), findsOneWidget);
+      expect(find.text('请填写所问之事'), findsNothing);
+      expect(find.text('世'), findsWidgets);
     });
 
     testWidgets('360 宽的本卦变卦并排不溢出', (tester) async {
@@ -341,7 +351,6 @@ void main() {
           YaoKind.youngYang,
           YaoKind.youngYang,
         ],
-        topic: DivinationTopic.general,
         question: '近况',
         method: '自动起卦',
         at: DateTime(2026, 11, 18, 12),
@@ -375,7 +384,6 @@ void main() {
         final at = DateTime(2026, 11, entry.key, 12);
         final reading = LiuyaoEngine.interpret(
           lines: List.filled(6, YaoKind.youngYang),
-          topic: DivinationTopic.general,
           question: '近况',
           at: at,
         );
@@ -393,7 +401,6 @@ void main() {
           YaoKind.youngYang,
           YaoKind.youngYang,
         ],
-        topic: DivinationTopic.career,
         question: '',
         at: DateTime(2026, 5, 1),
       );
@@ -404,6 +411,58 @@ void main() {
       expect(reading.lines.first.relative, '父母');
       expect(reading.lines.first.kind.changing, isTrue);
       expect(reading.lines[3].isYing, isTrue);
+    });
+
+    test('时间与数字起卦装成六爻', () {
+      final time = MeihuaEngine.timeCast(DateTime(2026, 2, 17))!;
+      final timeReading = LiuyaoEngine.interpret(
+        lines: LiuyaoEngine.linesFromTrigrams(
+          lower: time.lower,
+          upper: time.upper,
+          movingLine: time.movingLine,
+        ),
+        question: '近况',
+        method: '时间起卦',
+        at: DateTime(2026, 2, 17),
+      );
+      expect(timeReading.original.title, '天泽履');
+      expect(timeReading.method, '时间起卦');
+      expect(timeReading.lines[3].kind.changing, isTrue);
+      expect(
+        timeReading.lines.where((line) => line.kind.changing),
+        hasLength(1),
+      );
+
+      final number = MeihuaEngine.numberTripleCast(
+        digits: '181',
+        at: DateTime(2026, 11, 18, 12),
+      )!;
+      final numberReading = LiuyaoEngine.interpret(
+        lines: LiuyaoEngine.linesFromTrigrams(
+          lower: number.lower,
+          upper: number.upper,
+          movingLine: number.movingLine,
+        ),
+        question: '近况',
+        at: DateTime(2026, 11, 18, 12),
+      );
+      expect(numberReading.original.title, '天地否');
+      expect(numberReading.lines.first.kind, YaoKind.oldYin);
+
+      final grouped = MeihuaEngine.numberGroupCast(
+        digits: '1234',
+        at: DateTime(2026, 11, 13, 15),
+        addHour: true,
+      )!;
+      expect(grouped.movingLine, 1);
+      expect(
+        LiuyaoEngine.linesFromTrigrams(
+          lower: grouped.lower,
+          upper: grouped.upper,
+          movingLine: grouped.movingLine,
+        ).first,
+        YaoKind.oldYin,
+      );
     });
 
     test('铜钱以背为阳、字为阴', () {
@@ -430,7 +489,6 @@ void main() {
     test('六爻记录可以还原', () {
       final reading = LiuyaoEngine.interpret(
         lines: List.filled(6, YaoKind.youngYin),
-        topic: DivinationTopic.wealth,
         question: '这笔收入',
         method: '在线摇卦',
         at: DateTime(2026, 6, 1, 15),
@@ -444,7 +502,6 @@ void main() {
         record.createdAt,
       );
       expect(restored.original.title, reading.original.title);
-      expect(restored.topic, DivinationTopic.wealth);
       expect(restored.question, '这笔收入');
       expect(restored.method, '在线摇卦');
       expect(record.title, '这笔收入');

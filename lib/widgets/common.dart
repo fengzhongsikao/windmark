@@ -70,38 +70,6 @@ class SealMark extends StatelessWidget {
   }
 }
 
-/// 按钮因未填所问而不可用时，仍接收点击。
-class FillQuestionTap extends StatelessWidget {
-  const FillQuestionTap({
-    super.key,
-    required this.blocked,
-    required this.onBlocked,
-    required this.child,
-  });
-
-  final bool blocked;
-  final VoidCallback onBlocked;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!blocked) {
-      return child;
-    }
-    return Stack(
-      children: [
-        child,
-        Positioned.fill(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onBlocked,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class ToneBadge extends StatelessWidget {
   const ToneBadge({super.key, required this.label, required this.color});
 

@@ -2,23 +2,11 @@ import 'dart:math';
 
 import 'package:windmark/core/calendar/lunar_calendar.dart';
 import 'package:windmark/core/iching/hexagram.dart';
+import 'package:windmark/core/iching/trigram.dart';
 import 'package:windmark/core/iching/hexagram_book.dart';
 import 'package:windmark/core/iching/palace.dart';
 import 'package:windmark/core/iching/wuxing.dart';
 import 'package:windmark/core/models/reading_record.dart';
-
-enum DivinationTopic {
-  general('综合'),
-  career('事业'),
-  wealth('财运'),
-  relationship('感情'),
-  health('健康'),
-  travel('出行');
-
-  const DivinationTopic(this.label);
-
-  final String label;
-}
 
 enum YaoKind {
   oldYin(6, false, true, '老阴'),
@@ -62,8 +50,7 @@ class CoinThrow {
 enum ReadingTone {
   smooth('顺'),
   steady('平'),
-  slow('缓'),
-  unclear('不明');
+  slow('缓');
 
   const ReadingTone(this.label);
 
@@ -117,7 +104,6 @@ class LiuyaoReading {
     required this.original,
     required this.changed,
     required this.palace,
-    required this.topic,
     required this.question,
     required this.method,
     required this.createdAt,
@@ -130,7 +116,6 @@ class LiuyaoReading {
   final HexagramEntry original;
   final HexagramEntry? changed;
   final PalacePlacement palace;
-  final DivinationTopic topic;
   final String question;
   final String method;
   final DateTime createdAt;
@@ -145,10 +130,9 @@ class LiuyaoReading {
       kind: ReadingKind.liuyao,
       createdAt: createdAt,
       title: title,
-      summary: '${topic.label} · ${tone.label}${moving == 0 ? ' · 静卦' : ' · $moving 爻动'}',
+      summary: '${tone.label}${moving == 0 ? ' · 静卦' : ' · $moving 爻动'}',
       payload: {
         'lines': lines.map((line) => line.kind.sum).toList(),
-        'topic': topic.name,
         'question': question,
         'method': method,
       },
@@ -164,7 +148,6 @@ class LiuyaoReading {
       lines: [
         for (final item in rawLines) YaoKind.fromSum((item as num).toInt()),
       ],
-      topic: DivinationTopic.values.byName(payload['topic']! as String),
       question: payload['question'] as String? ?? '',
       method: payload['method'] as String? ?? '',
       at: createdAt,
@@ -194,9 +177,24 @@ abstract final class LiuyaoEngine {
     ]);
   }
 
+  /// 下卦在下、上卦在上。动爻为老阳或老阴，其余为少阳、少阴。
+  static List<YaoKind> linesFromTrigrams({
+    required Trigram lower,
+    required Trigram upper,
+    required int movingLine,
+  }) {
+    final yang = [...lower.lines, ...upper.lines];
+    return [
+      for (var i = 0; i < 6; i++)
+        if (i + 1 == movingLine)
+          yang[i] ? YaoKind.oldYang : YaoKind.oldYin
+        else
+          yang[i] ? YaoKind.youngYang : YaoKind.youngYin,
+    ];
+  }
+
   static LiuyaoReading interpret({
     required List<YaoKind> lines,
-    required DivinationTopic topic,
     required String question,
     required DateTime at,
     String method = '',
@@ -246,13 +244,12 @@ abstract final class LiuyaoEngine {
           isYing: i == yingIndex,
         ),
     ];
-    final tone = _tone(installed, topic);
+    final tone = _tone(installed);
     return LiuyaoReading(
       lines: installed,
       original: original,
       changed: changed,
       palace: palace,
-      topic: topic,
       question: question,
       method: method,
       createdAt: at,
@@ -263,9 +260,7 @@ abstract final class LiuyaoEngine {
         original: original,
         changed: changed,
         palace: palace,
-        topic: topic,
         lunar: lunar,
-        tone: tone,
       ),
     );
   }
@@ -335,49 +330,9 @@ abstract final class LiuyaoEngine {
     return ReadingTone.slow;
   }
 
-  static ReadingTone _tone(List<InstalledLine> lines, DivinationTopic topic) {
-    ReadingTone fromRelative(String relative) {
-      final matched = lines.where((line) => line.relative == relative).toList();
-      if (matched.isEmpty) {
-        return ReadingTone.unclear;
-      }
-      final best = matched.map((line) => _rank(line.strength)).reduce(max);
-      return _toneFromRank(best);
-    }
-
+  static ReadingTone _tone(List<InstalledLine> lines) {
     final shi = lines.firstWhere((line) => line.isShi);
-    return switch (topic) {
-      DivinationTopic.general || DivinationTopic.travel => _toneFromRank(
-        _rank(shi.strength),
-      ),
-      DivinationTopic.career => fromRelative('官鬼'),
-      DivinationTopic.wealth => fromRelative('妻财'),
-      DivinationTopic.relationship => _toneFromRank(
-        _rank(lines.firstWhere((line) => line.isYing).strength),
-      ),
-      DivinationTopic.health => _healthTone(lines),
-    };
-  }
-
-  static ReadingTone _healthTone(List<InstalledLine> lines) {
-    final medicine = lines.where((line) => line.relative == '子孙').toList();
-    final illness = lines.where((line) => line.relative == '官鬼').toList();
-    if (medicine.isEmpty && illness.isEmpty) {
-      return ReadingTone.unclear;
-    }
-    final medicineRank = medicine.isEmpty
-        ? 0
-        : medicine.map((line) => _rank(line.strength)).reduce(max);
-    final illnessRank = illness.isEmpty
-        ? 0
-        : illness.map((line) => _rank(line.strength)).reduce(max);
-    if (medicineRank >= 4 && medicineRank >= illnessRank) {
-      return ReadingTone.smooth;
-    }
-    if (illnessRank >= 4 && illnessRank > medicineRank) {
-      return ReadingTone.slow;
-    }
-    return ReadingTone.steady;
+    return _toneFromRank(_rank(shi.strength));
   }
 
   static List<String> _paragraphs({
@@ -385,9 +340,7 @@ abstract final class LiuyaoEngine {
     required HexagramEntry original,
     required HexagramEntry? changed,
     required PalacePlacement palace,
-    required DivinationTopic topic,
     required LunarDate lunar,
-    required ReadingTone tone,
   }) {
     final shi = lines.firstWhere((line) => line.isShi);
     final ying = lines.firstWhere((line) => line.isYing);
@@ -399,7 +352,6 @@ abstract final class LiuyaoEngine {
       '本卦${original.title}，${palace.label}。${lunar.dateLabel}，月令${elementOfLunarMonth(lunar.month).label}。$changeText',
       '世爻在${shi.position}，${shi.relative}${shi.branch}${shi.element.label}，月令${shi.strength}。应爻在${ying.position}，${ying.relative}${ying.branch}${ying.element.label}，月令${ying.strength}。${_shiYing(shi.element, ying.element)}',
       _movingText(moving),
-      _topicText(lines, topic, tone),
       original.text,
     ];
   }
@@ -431,61 +383,6 @@ abstract final class LiuyaoEngine {
         )
         .join('；');
     return '动爻提示变化的着力点：$details。旺相的动爻推动更明显，囚死的动爻多半是消耗。';
-  }
-
-  static String _topicText(
-    List<InstalledLine> lines,
-    DivinationTopic topic,
-    ReadingTone tone,
-  ) {
-    final advice = switch (tone) {
-      ReadingTone.smooth => '整体偏顺，可以按计划推进，仍要留有余地。',
-      ReadingTone.steady => '整体平稳，宜按部就班，不必强求速成。',
-      ReadingTone.slow => '整体偏滞，宜放慢、把条件补足，再做决定。',
-      ReadingTone.unclear => '用神不显，信息不足。可以把问题问得更具体，或等事态清楚一些再看。',
-    };
-    final focus = switch (topic) {
-      DivinationTopic.general => _focus(lines, '综合以世爻代表问卦之人', null),
-      DivinationTopic.career => _focus(lines, '事业看官鬼', '官鬼'),
-      DivinationTopic.wealth => _focus(lines, '财运看妻财', '妻财'),
-      DivinationTopic.relationship => _relationship(lines),
-      DivinationTopic.health => _health(lines),
-      DivinationTopic.travel => _focus(lines, '出行看世爻是否能动身', null),
-    };
-    return '$focus$advice';
-  }
-
-  static String _focus(
-    List<InstalledLine> lines,
-    String intro,
-    String? relative,
-  ) {
-    if (relative == null) {
-      final shi = lines.firstWhere((line) => line.isShi);
-      return '$intro。世爻${shi.strength}，${shi.kind.changing ? '并且发动' : '没有发动'}。';
-    }
-    final matched = lines.where((line) => line.relative == relative).toList();
-    if (matched.isEmpty) {
-      return '$intro。卦中不见$relative。';
-    }
-    final described = matched
-        .map(
-          (line) =>
-              '${line.position}${line.strength}${line.kind.changing ? '，发动' : ''}',
-        )
-        .join('、');
-    return '$intro，落在$described。';
-  }
-
-  static String _relationship(List<InstalledLine> lines) {
-    final ying = lines.firstWhere((line) => line.isYing);
-    return '感情先看应爻。应爻为${ying.relative}，月令${ying.strength}${ying.kind.changing ? '，并且发动' : ''}。不预设谁是谁，双方是否和合，可与世应生克一起看。';
-  }
-
-  static String _health(List<InstalledLine> lines) {
-    final medicine = _focus(lines, '传统以子孙为药、调养之力', '子孙');
-    final illness = _focus(lines, '以官鬼为病、压力之所在', '官鬼');
-    return '$illness$medicine身体状况以医生意见为准，这里只作文化参照。';
   }
 }
 

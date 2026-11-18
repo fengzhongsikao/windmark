@@ -261,7 +261,7 @@ class _InfoTable extends StatelessWidget {
 }
 
 String _guaStyle(MeihuaCast cast) {
-  final number = RegExp(r'^数字 (\d{3})').firstMatch(cast.detail);
+  final number = RegExp(r'^数字 (\d+)').firstMatch(cast.detail);
   if (number == null) {
     return '【${cast.method}】';
   }

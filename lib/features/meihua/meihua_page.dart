@@ -13,7 +13,8 @@ import 'package:windmark/widgets/common.dart';
 enum _MeihuaMode {
   time('时间起卦'),
   manual('手动指定'),
-  number('数字起卦'),
+  numberGroup('数字起卦1'),
+  numberTriple('数字起卦2'),
   auto('自动起卦');
 
   const _MeihuaMode(this.label);
@@ -38,15 +39,8 @@ class _MeihuaPageState extends ConsumerState<MeihuaPage> {
   Trigram? _lowerTrigram;
   int? _movingLine;
   String? _error;
+  bool _addHour = false;
   bool _saving = false;
-
-  bool get _hasQuestion => _question.text.trim().isNotEmpty;
-
-  void _promptQuestion() {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.clearSnackBars();
-    messenger.showSnackBar(const SnackBar(content: Text('请填写所问之事')));
-  }
 
   @override
   void dispose() {
@@ -79,7 +73,8 @@ class _MeihuaPageState extends ConsumerState<MeihuaPage> {
           Text(switch (_mode) {
             _MeihuaMode.time => '按农历年月日与时辰起卦。上卦取年、月、日之和除以 8，下卦再加时辰，动爻除以 6。',
             _MeihuaMode.manual => '自己选定上卦、下卦和动爻。',
-            _MeihuaMode.number => '输入一个三位数。百位除以 8 的余数为上卦，十位除以 8 的余数为下卦，个位除以 8 的余数为动爻。余数 0 当作 8；动爻若得 7 或 8，再减去 6。',
+            _MeihuaMode.numberGroup => '报一组数字。偶数平分，奇数时前半比后半少一位。',
+            _MeihuaMode.numberTriple => '报一个三位数。',
             _MeihuaMode.auto => '不看时辰、不报数，直接取上卦、下卦和动爻。',
           }, style: const TextStyle(color: AppColors.inkSoft, height: 1.5)),
           const SizedBox(height: 16),
@@ -87,10 +82,9 @@ class _MeihuaPageState extends ConsumerState<MeihuaPage> {
             key: const ValueKey('meihua-question'),
             controller: _question,
             textInputAction: TextInputAction.done,
-            onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(
               labelText: '所问',
-              hintText: '写下所问之事',
+              hintText: '选填',
             ),
           ),
           const SizedBox(height: 16),
@@ -124,42 +118,19 @@ class _MeihuaPageState extends ConsumerState<MeihuaPage> {
               ),
             ),
             const SizedBox(height: 16),
-            FillQuestionTap(
-              blocked: !_saving && !_hasQuestion,
-              onBlocked: _promptQuestion,
-              child: FilledButton(
-                onPressed: preview == null || _saving || !_hasQuestion
-                    ? null
-                    : () => _open(preview),
-                child: const Text('起卦'),
-              ),
+            FilledButton(
+              onPressed: preview == null || _saving ? null : () => _open(preview),
+              child: const Text('起卦'),
             ),
           ],
           if (_mode == _MeihuaMode.manual) ..._manualFields(),
-          if (_mode == _MeihuaMode.number) ...[
-            _NumberField(controller: _number),
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(_error!, style: const TextStyle(color: AppColors.cinnabar)),
-            ],
-            const SizedBox(height: 16),
-            FillQuestionTap(
-              blocked: !_saving && !_hasQuestion,
-              onBlocked: _promptQuestion,
-              child: FilledButton(
-                onPressed: _saving || !_hasQuestion ? null : _submitNumbers,
-                child: const Text('起卦'),
-              ),
-            ),
-          ],
+          if (_mode == _MeihuaMode.numberGroup ||
+              _mode == _MeihuaMode.numberTriple)
+            ..._numberFields(_mode == _MeihuaMode.numberTriple),
           if (_mode == _MeihuaMode.auto)
-            FillQuestionTap(
-              blocked: !_saving && !_hasQuestion,
-              onBlocked: _promptQuestion,
-              child: FilledButton(
-                onPressed: _saving || !_hasQuestion ? null : _submitAuto,
-                child: const Text('起卦'),
-              ),
+            FilledButton(
+              onPressed: _saving ? null : _submitAuto,
+              child: const Text('起卦'),
             ),
         ],
       ),
@@ -223,13 +194,9 @@ class _MeihuaPageState extends ConsumerState<MeihuaPage> {
         )
       else
         const SizedBox(height: 16),
-      FillQuestionTap(
-        blocked: !_saving && !_hasQuestion,
-        onBlocked: _promptQuestion,
-        child: FilledButton(
-          onPressed: _saving || !ready || !_hasQuestion ? null : _submitManual,
-          child: const Text('起卦'),
-        ),
+      FilledButton(
+        onPressed: _saving || !ready ? null : _submitManual,
+        child: const Text('起卦'),
       ),
     ];
   }
@@ -262,14 +229,78 @@ class _MeihuaPageState extends ConsumerState<MeihuaPage> {
     });
   }
 
+  List<Widget> _numberFields(bool triple) {
+    return [
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: _NumberField(
+              controller: _number,
+              label: triple ? '请输入一个三位的数字' : '请输入起卦数字',
+              hint: triple ? '例如 986' : '例如 1234',
+              maxLength: triple ? 3 : 32,
+            ),
+          ),
+          const SizedBox(width: 12),
+          InkWell(
+            onTap: _saving ? null : () => setState(() => _addHour = !_addHour),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _addHour ? Icons.check_circle : Icons.circle_outlined,
+                    color: AppColors.cinnabar,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 4),
+                  const Text('动爻加时辰', style: TextStyle(fontSize: 14)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 10),
+      Text(
+        triple ? _tripleRule : _groupRule,
+        style: const TextStyle(color: AppColors.inkSoft, height: 1.5),
+      ),
+      if (_error != null) ...[
+        const SizedBox(height: 8),
+        Text(_error!, style: const TextStyle(color: AppColors.cinnabar)),
+      ],
+      const SizedBox(height: 16),
+      FilledButton(
+        onPressed: _saving ? null : _submitNumbers,
+        child: const Text('起卦'),
+      ),
+    ];
+  }
+
   void _submitNumbers() {
     final text = _number.text;
-    final number = int.tryParse(text);
-    final cast = text.length == 3 && number != null
-        ? MeihuaEngine.numberCast(number: number, at: DateTime.now())
-        : null;
+    final at = DateTime.now();
+    final cast = _mode == _MeihuaMode.numberGroup
+        ? MeihuaEngine.numberGroupCast(
+            digits: text,
+            at: at,
+            addHour: _addHour,
+          )
+        : MeihuaEngine.numberTripleCast(
+            digits: text,
+            at: at,
+            addHour: _addHour,
+          );
     if (cast == null) {
-      setState(() => _error = '请输入三位数字');
+      setState(
+        () => _error = _mode == _MeihuaMode.numberGroup
+            ? '请输入起卦数字'
+            : '请输入一个三位的数字',
+      );
       return;
     }
     setState(() => _error = null);
@@ -302,10 +333,10 @@ class _MeihuaPageState extends ConsumerState<MeihuaPage> {
   }
 
   Future<void> _open(MeihuaCast cast) async {
-    final question = _question.text.trim();
-    if (_saving || question.isEmpty) {
+    if (_saving) {
       return;
     }
+    final question = _question.text.trim();
     setState(() => _saving = true);
     if (!mounted) {
       return;
@@ -514,10 +545,24 @@ class _ChoiceRow<T> extends StatelessWidget {
   }
 }
 
+const _groupRule =
+    '起卦算法：一组数字个数为偶数，则平分为二，以前一半数字之和除以 8 取余数得上卦，以后一半数字之和除以 8 取余数得下卦，上下卦数相加除以 6 取余数为动爻。若数字个数为奇，划分时前半比后半少一位。余数 0，卦当作 8，动爻当作 6。';
+
+const _tripleRule =
+    '起卦算法：第 1 数除以 8 的余数为上卦，第 2 数除以 8 的余数为下卦，第 3 数除以 6 的余数为动爻。余数 0，卦当作 8，动爻当作 6。';
+
 class _NumberField extends StatelessWidget {
-  const _NumberField({required this.controller});
+  const _NumberField({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.maxLength,
+  });
 
   final TextEditingController controller;
+  final String label;
+  final String hint;
+  final int maxLength;
 
   @override
   Widget build(BuildContext context) {
@@ -526,11 +571,11 @@ class _NumberField extends StatelessWidget {
       keyboardType: TextInputType.number,
       inputFormatters: [
         FilteringTextInputFormatter.digitsOnly,
-        LengthLimitingTextInputFormatter(3),
+        LengthLimitingTextInputFormatter(maxLength),
       ],
-      decoration: const InputDecoration(
-        labelText: '请输入一个三位的数字',
-        hintText: '例如 986',
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
         counterText: '',
       ),
     );
