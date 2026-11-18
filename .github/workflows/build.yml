@@ -110,10 +110,10 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK and AAB
+      - name: Build split APKs and AAB
         run: |
           set -euo pipefail
-          flutter build apk --release
+          flutter build apk --release --split-per-abi
           flutter build appbundle --release
 
       - name: Collect artifacts
@@ -121,8 +121,20 @@ jobs:
           set -euo pipefail
           version=$(awk '/^version:/ {print $2}' pubspec.yaml | tr '+' '-')
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk "dist/windmark-${version}.apk"
+          shopt -s nullglob
+          apks=(build/app/outputs/flutter-apk/app-*-release.apk)
+          if [ "${#apks[@]}" -eq 0 ]; then
+            echo "没有找到分包 APK" >&2
+            exit 1
+          fi
+          for apk in "${apks[@]}"; do
+            base=$(basename "$apk" .apk)
+            abi=${base#app-}
+            abi=${abi%-release}
+            cp "$apk" "dist/windmark-${version}-${abi}.apk"
+          done
           cp build/app/outputs/bundle/release/app-release.aab "dist/windmark-${version}.aab"
+          echo "APK 按架构分包：$(printf '%s\n' dist/*.apk | xargs -n1 basename | paste -sd '、' -)" >> "$GITHUB_STEP_SUMMARY"
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
             echo "Android 使用正式签名" >> "$GITHUB_STEP_SUMMARY"
           else
