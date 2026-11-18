@@ -296,6 +296,8 @@ abstract final class LiuyaoEngine {
     return '官鬼';
   }
 
+  /// 六神按日干从初爻起，依次向上：青龙、朱雀、勾陈、腾蛇、白虎、玄武。
+  /// 甲乙青龙，丙丁朱雀，戊勾陈，己腾蛇，庚辛白虎，壬癸玄武。
   static int _spiritStart(int stemIndex) {
     return switch (stemIndex) {
       0 || 1 => 0,
@@ -488,7 +490,7 @@ class _Najia {
   final List<String> upper;
 }
 
-const _spirits = ['青龙', '朱雀', '勾陈', '螣蛇', '白虎', '玄武'];
+const _spirits = ['青龙', '朱雀', '勾陈', '腾蛇', '白虎', '玄武'];
 
 const _najia = <String, _Najia>{
   '乾': _Najia(['甲子', '甲寅', '甲辰'], ['壬午', '壬申', '壬戌']),

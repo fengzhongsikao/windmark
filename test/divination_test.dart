@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:windmark/core/calendar/lunar_calendar.dart';
 import 'package:windmark/core/iching/gua_classic.dart';
@@ -11,6 +13,7 @@ import 'package:windmark/core/iching/palace.dart';
 import 'package:windmark/core/iching/wuxing.dart';
 import 'package:windmark/core/models/reading_record.dart';
 import 'package:windmark/features/liuyao/liuyao_engine.dart';
+import 'package:windmark/features/liuyao/liuyao_result_page.dart';
 import 'package:windmark/features/meihua/meihua_engine.dart';
 
 void main() {
@@ -239,6 +242,10 @@ void main() {
       expect(reading.lines.first.ganzhi, '甲子');
       expect(reading.lines.first.relative, '子孙');
       expect(reading.lines.first.spirit, '勾陈');
+      expect(
+        reading.lines.map((line) => line.spirit).toList(),
+        ['勾陈', '腾蛇', '白虎', '玄武', '青龙', '朱雀'],
+      );
       expect(reading.lines.last.isShi, isTrue);
       expect(reading.lines[2].isYing, isTrue);
       expect(reading.lines.last.relative, '父母');
@@ -251,6 +258,59 @@ void main() {
           elementOfLunarMonth(lunar.month),
         ),
       );
+    });
+
+    testWidgets('360 宽的本卦变卦并排不溢出', (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final reading = LiuyaoEngine.interpret(
+        lines: [
+          YaoKind.oldYin,
+          YaoKind.youngYang,
+          YaoKind.youngYang,
+          YaoKind.youngYang,
+          YaoKind.youngYang,
+          YaoKind.youngYang,
+        ],
+        topic: DivinationTopic.general,
+        question: '近况',
+        at: DateTime(2026, 11, 18, 12),
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: LiuyaoResultPage(reading: reading, canSave: false),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    test('六神按日干从初爻起', () {
+      const firstSpirit = {
+        6: '青龙',
+        7: '青龙',
+        8: '朱雀',
+        9: '朱雀',
+        10: '勾陈',
+        11: '腾蛇',
+        12: '白虎',
+        13: '白虎',
+        14: '玄武',
+        15: '玄武',
+      };
+      for (final entry in firstSpirit.entries) {
+        final at = DateTime(2026, 11, entry.key, 12);
+        final reading = LiuyaoEngine.interpret(
+          lines: List.filled(6, YaoKind.youngYang),
+          topic: DivinationTopic.general,
+          question: '近况',
+          at: at,
+        );
+        expect(reading.lines.first.spirit, entry.value, reason: stems[dayStemIndex(at)]);
+      }
     });
 
     test('姤为一世，初爻发动变为乾', () {

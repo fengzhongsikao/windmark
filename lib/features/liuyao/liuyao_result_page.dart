@@ -406,52 +406,48 @@ class _YaoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: _yaoRowHeight,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 30,
-            child: Text(
-              line.spirit,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: _pureRed,
-                fontSize: 12,
-                height: 1,
-                fontWeight: FontWeight.w700,
-              ),
+    return _FitYaoRow(
+      children: [
+        SizedBox(
+          width: 30,
+          child: Text(
+            line.spirit,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: _pureRed,
+              fontSize: 12,
+              height: 1,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          SizedBox(
-            width: 56,
-            child: Text(
-              _yaoText(line.relative, line.branch, line.element.label),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, height: 1),
+        ),
+        SizedBox(
+          width: 56,
+          child: Text(
+            _yaoText(line.relative, line.branch, line.element.label),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, height: 1),
+          ),
+        ),
+        _Bar(yang: line.kind.yang),
+        SizedBox(
+          width: 16,
+          child: Text(
+            line.isShi
+                ? '世'
+                : line.isYing
+                ? '应'
+                : '',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: _pureRed,
+              fontSize: 12,
+              height: 1,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          _Bar(yang: line.kind.yang),
-          SizedBox(
-            width: 16,
-            child: Text(
-              line.isShi
-                  ? '世'
-                  : line.isYing
-                  ? '应'
-                  : '',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: _pureRed,
-                fontSize: 12,
-                height: 1,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -474,30 +470,50 @@ class _ChangedYaoRow extends StatelessWidget {
         : line.kind.yang
         ? '○→'
         : '×→';
+    return _FitYaoRow(
+      children: [
+        SizedBox(
+          width: 26,
+          child: Text(
+            mark,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, height: 1),
+          ),
+        ),
+        _Bar(yang: yang),
+        const SizedBox(width: 4),
+        SizedBox(
+          width: 56,
+          child: Text(
+            _yaoText(changed.relative, changed.branch, changed.element.label),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, height: 1),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FitYaoRow extends StatelessWidget {
+  const _FitYaoRow({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
     return SizedBox(
       height: _yaoRowHeight,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 26,
-            child: Text(
-              mark,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, height: 1),
-            ),
+      width: double.infinity,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: SizedBox(
+          width: _plateRowWidth,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: children,
           ),
-          _Bar(yang: yang),
-          const SizedBox(width: 4),
-          SizedBox(
-            width: 56,
-            child: Text(
-              _yaoText(changed.relative, changed.branch, changed.element.label),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, height: 1),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -547,6 +563,9 @@ class _Bar extends StatelessWidget {
 
 const _pureRed = Color(0xFFFF0000);
 const _yaoRowHeight = 28.0;
+
+/// 六神 30、六亲 56、爻画 56、世应 16。两列并排时按这个宽度缩小。
+const _plateRowWidth = 30.0 + 56.0 + _Bar.width + 16.0;
 
 String _yaoText(String relative, String branch, String element) {
   return '$relative$branch$element';
