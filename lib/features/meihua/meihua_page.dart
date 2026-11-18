@@ -42,6 +42,12 @@ class _MeihuaPageState extends ConsumerState<MeihuaPage> {
 
   bool get _hasQuestion => _question.text.trim().isNotEmpty;
 
+  void _promptQuestion() {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(const SnackBar(content: Text('请填写所问之事')));
+  }
+
   @override
   void dispose() {
     _question.dispose();
@@ -118,11 +124,15 @@ class _MeihuaPageState extends ConsumerState<MeihuaPage> {
               ),
             ),
             const SizedBox(height: 16),
-            FilledButton(
-              onPressed: preview == null || _saving || !_hasQuestion
-                  ? null
-                  : () => _open(preview),
-              child: const Text('起卦'),
+            FillQuestionTap(
+              blocked: !_saving && !_hasQuestion,
+              onBlocked: _promptQuestion,
+              child: FilledButton(
+                onPressed: preview == null || _saving || !_hasQuestion
+                    ? null
+                    : () => _open(preview),
+                child: const Text('起卦'),
+              ),
             ),
           ],
           if (_mode == _MeihuaMode.manual) ..._manualFields(),
@@ -133,15 +143,23 @@ class _MeihuaPageState extends ConsumerState<MeihuaPage> {
               Text(_error!, style: const TextStyle(color: AppColors.cinnabar)),
             ],
             const SizedBox(height: 16),
-            FilledButton(
-              onPressed: _saving || !_hasQuestion ? null : _submitNumbers,
-              child: const Text('起卦'),
+            FillQuestionTap(
+              blocked: !_saving && !_hasQuestion,
+              onBlocked: _promptQuestion,
+              child: FilledButton(
+                onPressed: _saving || !_hasQuestion ? null : _submitNumbers,
+                child: const Text('起卦'),
+              ),
             ),
           ],
           if (_mode == _MeihuaMode.auto)
-            FilledButton(
-              onPressed: _saving || !_hasQuestion ? null : _submitAuto,
-              child: const Text('起卦'),
+            FillQuestionTap(
+              blocked: !_saving && !_hasQuestion,
+              onBlocked: _promptQuestion,
+              child: FilledButton(
+                onPressed: _saving || !_hasQuestion ? null : _submitAuto,
+                child: const Text('起卦'),
+              ),
             ),
         ],
       ),
@@ -205,9 +223,13 @@ class _MeihuaPageState extends ConsumerState<MeihuaPage> {
         )
       else
         const SizedBox(height: 16),
-      FilledButton(
-        onPressed: _saving || !ready || !_hasQuestion ? null : _submitManual,
-        child: const Text('起卦'),
+      FillQuestionTap(
+        blocked: !_saving && !_hasQuestion,
+        onBlocked: _promptQuestion,
+        child: FilledButton(
+          onPressed: _saving || !ready || !_hasQuestion ? null : _submitManual,
+          child: const Text('起卦'),
+        ),
       ),
     ];
   }

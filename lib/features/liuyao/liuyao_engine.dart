@@ -119,6 +119,7 @@ class LiuyaoReading {
     required this.palace,
     required this.topic,
     required this.question,
+    required this.method,
     required this.createdAt,
     required this.lunar,
     required this.tone,
@@ -131,6 +132,7 @@ class LiuyaoReading {
   final PalacePlacement palace;
   final DivinationTopic topic;
   final String question;
+  final String method;
   final DateTime createdAt;
   final LunarDate lunar;
   final ReadingTone tone;
@@ -148,6 +150,7 @@ class LiuyaoReading {
         'lines': lines.map((line) => line.kind.sum).toList(),
         'topic': topic.name,
         'question': question,
+        'method': method,
       },
     );
   }
@@ -163,6 +166,7 @@ class LiuyaoReading {
       ],
       topic: DivinationTopic.values.byName(payload['topic']! as String),
       question: payload['question'] as String? ?? '',
+      method: payload['method'] as String? ?? '',
       at: createdAt,
     );
   }
@@ -195,6 +199,7 @@ abstract final class LiuyaoEngine {
     required DivinationTopic topic,
     required String question,
     required DateTime at,
+    String method = '',
   }) {
     if (lines.length != 6) {
       throw ArgumentError('六爻需要摇满六次');
@@ -249,6 +254,7 @@ abstract final class LiuyaoEngine {
       palace: palace,
       topic: topic,
       question: question,
+      method: method,
       createdAt: at,
       lunar: lunar,
       tone: tone,

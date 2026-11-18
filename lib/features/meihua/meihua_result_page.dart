@@ -130,7 +130,7 @@ class _InfoTable extends StatelessWidget {
         children: [
           _line('事项', cast.question),
           _line('日期', date),
-          _line('卦式', _guaStyle(cast)),
+          _line('起卦方式', _guaStyle(cast)),
           _line('节气', pillars.termLabel),
           _split(
             '干支',
@@ -243,7 +243,7 @@ class _InfoTable extends StatelessWidget {
 
   Widget _label(String text) {
     return Container(
-      width: 48,
+      width: 72,
       alignment: Alignment.center,
       decoration: const BoxDecoration(
         border: Border(right: BorderSide(color: AppColors.line)),

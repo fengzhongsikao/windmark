@@ -8,6 +8,7 @@ import 'package:windmark/app/theme.dart';
 import 'package:windmark/core/iching/hexagram.dart';
 import 'package:windmark/features/liuyao/liuyao_engine.dart';
 import 'package:windmark/features/liuyao/liuyao_result_page.dart';
+import 'package:windmark/widgets/common.dart';
 
 enum _CastMode {
   manual('手动指定'),
@@ -154,11 +155,15 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
             child: const Text('清空'),
           ),
         ),
-      FilledButton(
-        onPressed: _saving || !ready || !_hasQuestion
-            ? null
-            : () => _finish([for (final line in _picked) line!]),
-        child: const Text('解卦'),
+      FillQuestionTap(
+        blocked: !_saving && !_hasQuestion,
+        onBlocked: _promptQuestion,
+        child: FilledButton(
+          onPressed: _saving || !ready || !_hasQuestion
+              ? null
+              : () => _finish([for (final line in _picked) line!]),
+          child: const Text('解卦'),
+        ),
       ),
     ];
   }
@@ -179,9 +184,13 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
       Center(child: _CastingTablet(lines: _shaken)),
       const SizedBox(height: 16),
       if (_shaken.length < 6)
-        FilledButton(
-          onPressed: _shaking || !_hasQuestion ? null : _shakeOne,
-          child: const Text('摇一爻'),
+        FillQuestionTap(
+          blocked: !_shaking && !_hasQuestion,
+          onBlocked: _promptQuestion,
+          child: FilledButton(
+            onPressed: _shaking || !_hasQuestion ? null : _shakeOne,
+            child: const Text('摇一爻'),
+          ),
         )
       else
         Row(
@@ -194,11 +203,15 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: FilledButton(
-                onPressed: _saving || !_hasQuestion
-                    ? null
-                    : () => _finish(_shaken),
-                child: const Text('解卦'),
+              child: FillQuestionTap(
+                blocked: !_saving && !_hasQuestion,
+                onBlocked: _promptQuestion,
+                child: FilledButton(
+                  onPressed: _saving || !_hasQuestion
+                      ? null
+                      : () => _finish(_shaken),
+                  child: const Text('解卦'),
+                ),
               ),
             ),
           ],
@@ -211,9 +224,13 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
       Center(child: _CastingTablet(lines: _autoLines)),
       const SizedBox(height: 16),
       if (_autoLines.length < 6)
-        FilledButton(
-          onPressed: !_hasQuestion ? null : _fillAll,
-          child: const Text('一键起卦'),
+        FillQuestionTap(
+          blocked: !_hasQuestion,
+          onBlocked: _promptQuestion,
+          child: FilledButton(
+            onPressed: !_hasQuestion ? null : _fillAll,
+            child: const Text('一键起卦'),
+          ),
         )
       else
         Row(
@@ -226,11 +243,15 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: FilledButton(
-                onPressed: _saving || !_hasQuestion
-                    ? null
-                    : () => _finish(_autoLines),
-                child: const Text('解卦'),
+              child: FillQuestionTap(
+                blocked: !_saving && !_hasQuestion,
+                onBlocked: _promptQuestion,
+                child: FilledButton(
+                  onPressed: _saving || !_hasQuestion
+                      ? null
+                      : () => _finish(_autoLines),
+                  child: const Text('解卦'),
+                ),
               ),
             ),
           ],
@@ -282,6 +303,12 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
 
   bool get _hasQuestion => _question.text.trim().isNotEmpty;
 
+  void _promptQuestion() {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(const SnackBar(content: Text('请填写所问之事')));
+  }
+
   Future<void> _finish(List<YaoKind> lines) async {
     if (_saving || lines.length != 6 || !_hasQuestion) {
       return;
@@ -292,6 +319,7 @@ class _LiuyaoPageState extends ConsumerState<LiuyaoPage> {
         lines: List<YaoKind>.of(lines),
         topic: _topic,
         question: _question.text.trim(),
+        method: _mode.label,
         at: DateTime.now(),
       );
       if (!mounted) {

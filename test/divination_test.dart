@@ -13,8 +13,12 @@ import 'package:windmark/core/iching/palace.dart';
 import 'package:windmark/core/iching/wuxing.dart';
 import 'package:windmark/core/models/reading_record.dart';
 import 'package:windmark/features/liuyao/liuyao_engine.dart';
+import 'package:windmark/features/liuyao/liuyao_page.dart';
 import 'package:windmark/features/liuyao/liuyao_result_page.dart';
 import 'package:windmark/features/meihua/meihua_engine.dart';
+import 'package:windmark/features/meihua/meihua_page.dart';
+import 'package:windmark/features/meihua/meihua_result_page.dart';
+import 'package:windmark/widgets/common.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -210,6 +214,40 @@ void main() {
       expect(cast.originalEntry.title, '天泽履');
     });
 
+    testWidgets('未填所问时点击起卦会提示', (tester) async {
+      await tester.pumpWidget(
+        const ProviderScope(child: MaterialApp(home: MeihuaPage())),
+      );
+      await tester.tap(find.byType(FillQuestionTap));
+      await tester.pump();
+      expect(find.text('请填写所问之事'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('meihua-mode')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('手动指定').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(FillQuestionTap));
+      await tester.pump();
+      expect(find.text('请填写所问之事'), findsOneWidget);
+    });
+
+    testWidgets('梅花详情显示起卦方式', (tester) async {
+      final cast = MeihuaEngine.numberCast(
+        number: 181,
+        at: DateTime(2026, 1, 2, 8),
+      )!.withQuestion('近况');
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: MeihuaResultPage(cast: cast, canSave: false),
+          ),
+        ),
+      );
+      expect(find.text('起卦方式'), findsOneWidget);
+      expect(find.text('【数字起卦】181'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     test('记录可以还原', () {
       final cast = MeihuaEngine.numberCast(
         number: 181,
@@ -260,6 +298,35 @@ void main() {
       );
     });
 
+    testWidgets('未填所问时点击起卦会提示', (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        const ProviderScope(child: MaterialApp(home: LiuyaoPage())),
+      );
+      await tester.tap(find.byType(FillQuestionTap));
+      await tester.pump();
+      expect(find.text('请填写所问之事'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('cast-mode')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('在线摇卦').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(FillQuestionTap));
+      await tester.pump();
+      expect(find.text('请填写所问之事'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('cast-mode')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('手动指定').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(FillQuestionTap));
+      await tester.pump();
+      expect(find.text('请填写所问之事'), findsOneWidget);
+    });
+
     testWidgets('360 宽的本卦变卦并排不溢出', (tester) async {
       tester.view.physicalSize = const Size(360, 800);
       tester.view.devicePixelRatio = 1;
@@ -276,6 +343,7 @@ void main() {
         ],
         topic: DivinationTopic.general,
         question: '近况',
+        method: '自动起卦',
         at: DateTime(2026, 11, 18, 12),
       );
       await tester.pumpWidget(
@@ -285,6 +353,8 @@ void main() {
           ),
         ),
       );
+      expect(find.text('起卦方式'), findsOneWidget);
+      expect(find.text('【自动起卦】'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -362,6 +432,7 @@ void main() {
         lines: List.filled(6, YaoKind.youngYin),
         topic: DivinationTopic.wealth,
         question: '这笔收入',
+        method: '在线摇卦',
         at: DateTime(2026, 6, 1, 15),
       );
       final encoded = jsonDecode(
@@ -375,6 +446,7 @@ void main() {
       expect(restored.original.title, reading.original.title);
       expect(restored.topic, DivinationTopic.wealth);
       expect(restored.question, '这笔收入');
+      expect(restored.method, '在线摇卦');
       expect(record.title, '这笔收入');
     });
   });
