@@ -9,6 +9,7 @@ import 'package:windmark/features/history/history_controller.dart';
 import 'package:windmark/features/profile/about_page.dart';
 import 'package:windmark/features/profile/app_update.dart';
 import 'package:windmark/features/profile/divination_explain_page.dart';
+import 'package:windmark/features/profile/wings_page.dart';
 import 'package:windmark/features/profile/history_list_page.dart';
 import 'package:windmark/features/profile/user_profile.dart';
 import 'package:windmark/widgets/common.dart';
@@ -130,6 +131,11 @@ class ProfilePage extends ConsumerWidget {
                     MaterialPageRoute<void>(
                       builder: (_) => const DivinationExplainPage(),
                     ),
+                  );
+                },
+                onWings: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const WingsPage()),
                   );
                 },
                 onAbout: () {
@@ -351,9 +357,14 @@ class _NameDialogState extends State<_NameDialog> {
 }
 
 class _SettingsGroup extends StatefulWidget {
-  const _SettingsGroup({required this.onExplain, required this.onAbout});
+  const _SettingsGroup({
+    required this.onExplain,
+    required this.onWings,
+    required this.onAbout,
+  });
 
   final VoidCallback onExplain;
+  final VoidCallback onWings;
   final VoidCallback onAbout;
 
   @override
@@ -387,6 +398,8 @@ class _SettingsGroupState extends State<_SettingsGroup> {
                 ),
                 const Divider(height: 1, thickness: 1, color: AppColors.line),
                 _SettingRow(title: '占卜解释', onTap: widget.onExplain),
+                const Divider(height: 1, thickness: 1, color: AppColors.line),
+                _SettingRow(title: '易传', onTap: widget.onWings),
                 const Divider(height: 1, thickness: 1, color: AppColors.line),
                 _SettingRow(title: '关于我们', onTap: widget.onAbout),
               ],

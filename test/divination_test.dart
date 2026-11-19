@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:windmark/core/calendar/lunar_calendar.dart';
 import 'package:windmark/core/iching/gua_classic.dart';
+import 'package:windmark/core/iching/yi_wings.dart';
+import 'package:windmark/widgets/classic_texts.dart';
 import 'package:windmark/core/iching/hexagram_book.dart';
 import 'package:windmark/core/iching/trigram.dart';
 import 'package:windmark/core/iching/hexagram_relation.dart';
@@ -18,6 +20,7 @@ import 'package:windmark/features/liuyao/liuyao_result_page.dart';
 import 'package:windmark/features/meihua/meihua_engine.dart';
 import 'package:windmark/features/meihua/meihua_page.dart';
 import 'package:windmark/features/meihua/meihua_result_page.dart';
+import 'package:windmark/features/profile/wings_page.dart';
 import 'package:windmark/widgets/common.dart';
 
 void main() {
@@ -146,8 +149,57 @@ void main() {
       expect(qian.yaoCi[4], startsWith('九五'));
       expect(qian.yaoCi[5], startsWith('上九'));
       expect(qian.yaoCi.last, startsWith('用九'));
-      expect(book.byNumber(2)!.yaoCi.first, contains('履霜'));
-      expect(book.byNumber(64), isNotNull);
+      expect(qian.tuan, contains('大哉乾元'));
+      expect(qian.daXiang, '天行健，君子以自强不息。');
+      expect(qian.xiaoXiang, hasLength(7));
+      expect(qian.xiaoXiang[1], contains('见龙在田'));
+      expect(qian.wenyan.first, contains('元者，善之长也'));
+      expect(qian.xu, contains('有天地'));
+      expect(qian.za, '乾刚。');
+      final kun = book.byNumber(2)!;
+      expect(kun.yaoCi.first, contains('履霜'));
+      expect(kun.xiaoXiang, hasLength(7));
+      expect(kun.xiaoXiang.last, contains('用六'));
+      expect(kun.wenyan, isNotEmpty);
+      final tun = book.byNumber(3)!;
+      expect(tun.xiaoXiang, hasLength(6));
+      expect(tun.wenyan, isEmpty);
+      expect(tun.tuan, isNotEmpty);
+      expect(tun.xu, contains('受之以屯'));
+      expect(book.byNumber(64)!.za, contains('未济'));
+    });
+
+    test('系辞说卦序卦杂卦分章可读', () async {
+      final wings = await YiWingBook.load();
+      expect(wings.chapters.map((chapter) => chapter.title), [
+        '系辞上',
+        '系辞下',
+        '说卦',
+        '序卦',
+        '杂卦',
+      ]);
+      expect(
+        wings.chapters.first.sections.first.paragraphs.first,
+        contains('天尊地卑'),
+      );
+      expect(wings.chapters[2].sections, isNotEmpty);
+      final zagua = wings.chapters.last.sections.single.paragraphs.join();
+      expect(zagua, contains('乾刚坤柔'));
+    });
+
+    testWidgets('易传可以打开系辞', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: WingsPage()));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+      expect(find.text('系辞上'), findsOneWidget);
+      expect(find.text('文言 · 乾'), findsOneWidget);
+      await tester.tap(find.text('系辞上'));
+      await tester.pumpAndSettle();
+      expect(find.text('第一章'), findsOneWidget);
+      expect(find.textContaining('天尊地卑'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
 
     test('同一天的今日卦不变', () {
@@ -302,10 +354,14 @@ void main() {
       expect(reading.lines.first.ganzhi, '甲子');
       expect(reading.lines.first.relative, '子孙');
       expect(reading.lines.first.spirit, '勾陈');
-      expect(
-        reading.lines.map((line) => line.spirit).toList(),
-        ['勾陈', '腾蛇', '白虎', '玄武', '青龙', '朱雀'],
-      );
+      expect(reading.lines.map((line) => line.spirit).toList(), [
+        '勾陈',
+        '腾蛇',
+        '白虎',
+        '玄武',
+        '青龙',
+        '朱雀',
+      ]);
       expect(reading.lines.last.isShi, isTrue);
       expect(reading.lines[2].isYing, isTrue);
       expect(reading.lines.last.relative, '父母');
@@ -367,6 +423,38 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('卦辞下面跟着彖传和象传', (tester) async {
+      tester.view.physicalSize = const Size(400, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ListView(
+              children: [
+                ClassicTexts(
+                  sections: [
+                    ClassicSection(heading: '本卦 乾为天', number: 1, lines: {1}),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+      expect(find.textContaining('彖曰大哉乾元'), findsOneWidget);
+      expect(find.textContaining('象曰天行健'), findsOneWidget);
+      expect(find.textContaining('象曰潜龙勿用，阳在下也'), findsOneWidget);
+      expect(find.text('序卦、杂卦'), findsNothing);
+      expect(find.text('文言、序卦、杂卦'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     test('六神按日干从初爻起', () {
       const firstSpirit = {
         6: '青龙',
@@ -387,7 +475,11 @@ void main() {
           question: '近况',
           at: at,
         );
-        expect(reading.lines.first.spirit, entry.value, reason: stems[dayStemIndex(at)]);
+        expect(
+          reading.lines.first.spirit,
+          entry.value,
+          reason: stems[dayStemIndex(at)],
+        );
       }
     });
 

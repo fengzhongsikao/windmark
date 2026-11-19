@@ -7,6 +7,12 @@ class GuaClassic {
     required this.id,
     required this.guaCi,
     required this.yaoCi,
+    required this.tuan,
+    required this.daXiang,
+    required this.xiaoXiang,
+    required this.wenyan,
+    required this.xu,
+    required this.za,
   });
 
   final int id;
@@ -14,6 +20,24 @@ class GuaClassic {
 
   /// 自初爻至上爻。用九、用六若单独成句，附在最后。
   final List<String> yaoCi;
+
+  /// 彖传。
+  final String tuan;
+
+  /// 大象。
+  final String daXiang;
+
+  /// 小象，自初爻至上爻。乾、坤在末条附用九、用六。
+  final List<String> xiaoXiang;
+
+  /// 文言。只有乾、坤有。
+  final List<String> wenyan;
+
+  /// 序卦里说到这一卦的一句。
+  final String xu;
+
+  /// 杂卦里说到这一卦的一句。
+  final String za;
 }
 
 class GuaTextBook {
@@ -40,6 +64,18 @@ class GuaTextBook {
             for (final line in row['yao_ci'] as List<dynamic>)
               ..._expand(line as String),
           ],
+          tuan: _clean(row['tuan'] as String),
+          daXiang: _clean(row['da_xiang'] as String),
+          xiaoXiang: [
+            for (final line in row['xiao_xiang'] as List<dynamic>)
+              _clean(line as String),
+          ],
+          wenyan: [
+            for (final line in row['wenyan'] as List<dynamic>)
+              _clean(line as String),
+          ],
+          xu: _clean(row['xu'] as String),
+          za: _clean(row['za'] as String),
         ),
     });
   }
