@@ -71,7 +71,10 @@ class _MeihuaResultPageState extends ConsumerState<MeihuaResultPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
-          _InfoTable(cast: cast, pillars: pillars, lunar: lunar),
+          MediaQuery.withClampedTextScaling(
+            maxScaleFactor: 1.2,
+            child: _InfoTable(cast: cast, pillars: pillars, lunar: lunar),
+          ),
           const SizedBox(height: 12),
           _Plate(cast: cast),
           const SizedBox(height: 12),
@@ -174,11 +177,7 @@ class _InfoTable extends StatelessWidget {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                child: Text(
-                  value,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 13, height: 1.35),
-                ),
+                child: _valueText(label, value),
               ),
             ),
           ],
@@ -250,6 +249,7 @@ class _InfoTable extends StatelessWidget {
       ),
       child: Text(
         text,
+        textAlign: TextAlign.center,
         style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
@@ -257,6 +257,21 @@ class _InfoTable extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _valueText(String label, String value) {
+    const style = TextStyle(fontSize: 13, height: 1.35);
+    if (label == '节气') {
+      return SizedBox(
+        height: 18,
+        width: double.infinity,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(value, maxLines: 1, softWrap: false, style: style),
+        ),
+      );
+    }
+    return Text(value, textAlign: TextAlign.center, style: style);
   }
 }
 
@@ -299,25 +314,37 @@ class _Plate extends StatelessWidget {
                   Expanded(
                     child: Column(
                       children: [
-                        Text(
-                          '【${column.label}】',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: _pureRed,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '【${column.label}】',
+                            maxLines: 1,
+                            softWrap: false,
+                            style: const TextStyle(
+                              color: _pureRed,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          column.entry.title,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 12, height: 1.2),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            column.entry.title,
+                            maxLines: 1,
+                            softWrap: false,
+                            style: const TextStyle(fontSize: 12, height: 1.2),
+                          ),
                         ),
-                        Text(
-                          '(${column.palace.name})',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 12, height: 1.2),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '(${column.palace.name})',
+                            maxLines: 1,
+                            softWrap: false,
+                            style: const TextStyle(fontSize: 12, height: 1.2),
+                          ),
                         ),
                       ],
                     ),

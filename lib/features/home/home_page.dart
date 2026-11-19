@@ -4,15 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:windmark/app/theme.dart';
 import 'package:windmark/core/calendar/lunar_calendar.dart';
 import 'package:windmark/core/iching/hexagram_book.dart';
-import 'package:windmark/core/models/reading_record.dart';
-import 'package:windmark/features/history/history_controller.dart';
-import 'package:windmark/features/history/open_reading.dart';
 import 'package:windmark/features/profile/user_profile.dart';
 import 'package:windmark/features/shell/app_tab.dart';
 import 'package:windmark/widgets/common.dart';
 import 'package:windmark/widgets/user_avatar.dart';
 import 'package:windmark/widgets/hexagram_figure.dart';
-import 'package:windmark/widgets/reading_tile.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -22,7 +18,6 @@ class HomePage extends ConsumerWidget {
     final now = DateTime.now();
     final lunar = LunarCalendar.fromSolar(now);
     final daily = HexagramBook.daily(now);
-    final history = ref.watch(readingHistoryProvider);
     final profile =
         ref.watch(userProfileProvider).asData?.value ?? UserProfile.fallback;
     final textTheme = Theme.of(context).textTheme;
@@ -133,53 +128,10 @@ class HomePage extends ConsumerWidget {
               onTap: () =>
                   ref.read(appTabProvider.notifier).select(AppTab.liuyao),
             ),
-            const SizedBox(height: 22),
-            Text(
-              '最近占问',
-              style: textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 10),
-            history.when(
-              data: (records) {
-                if (records.isEmpty) {
-                  return const Text(
-                    '还没有记录。起过卦之后，会留在这里和「我的」。',
-                    style: TextStyle(color: AppColors.inkSoft, height: 1.5),
-                  );
-                }
-                return Column(
-                  children: [
-                    for (final record in records.take(3)) ...[
-                      ReadingTile(
-                        record: record,
-                        onTap: () => _open(context, record),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  ],
-                );
-              },
-              loading: () => const LinearProgressIndicator(),
-              error: (error, stackTrace) => const Text(
-                '记录暂时读不出来',
-                style: TextStyle(color: AppColors.inkSoft),
-              ),
-            ),
           ],
         ),
       ),
     );
-  }
-
-  void _open(BuildContext context, ReadingRecord record) {
-    try {
-      openReading(context, record);
-    } on Object {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('这条记录读不出来了')));
-    }
   }
 
   void _showDaily(BuildContext context, HexagramEntry entry) {

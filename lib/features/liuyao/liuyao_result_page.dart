@@ -77,7 +77,10 @@ class _LiuyaoResultPageState extends ConsumerState<LiuyaoResultPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
-          _InfoTable(reading: reading, pillars: pillars),
+          MediaQuery.withClampedTextScaling(
+            maxScaleFactor: 1.2,
+            child: _InfoTable(reading: reading, pillars: pillars),
+          ),
           const SizedBox(height: 12),
           _Plate(
             reading: reading,
@@ -199,10 +202,7 @@ class _InfoTable extends StatelessWidget {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                child: Text(
-                  value,
-                  style: const TextStyle(fontSize: 13, height: 1.35),
-                ),
+                child: _valueText(label, value),
               ),
             ),
           ],
@@ -271,6 +271,7 @@ class _InfoTable extends StatelessWidget {
       ),
       child: Text(
         text,
+        textAlign: TextAlign.center,
         style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
@@ -279,6 +280,30 @@ class _InfoTable extends StatelessWidget {
       ),
     );
   }
+
+  Widget _valueText(String label, String value) {
+    const style = TextStyle(fontSize: 13, height: 1.35);
+    if (label == '节气') {
+      return SizedBox(
+        height: 18,
+        width: double.infinity,
+        child: _fitText(value, style),
+      );
+    }
+    return Text(value, style: style);
+  }
+}
+
+Widget _fitText(
+  String text,
+  TextStyle style, {
+  Alignment align = Alignment.centerLeft,
+}) {
+  return FittedBox(
+    fit: BoxFit.scaleDown,
+    alignment: align,
+    child: Text(text, maxLines: 1, softWrap: false, style: style),
+  );
 }
 
 class _Plate extends StatelessWidget {
@@ -380,20 +405,18 @@ class _GuaColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
+        _fitText(
           title,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontWeight: FontWeight.w700),
+          const TextStyle(fontWeight: FontWeight.w700),
+          align: Alignment.center,
         ),
         const SizedBox(height: 8),
         for (final row in rows) row,
         const SizedBox(height: 6),
-        Text(
+        _fitText(
           footer,
-          style: const TextStyle(
-            color: AppColors.moss,
-            fontWeight: FontWeight.w700,
-          ),
+          const TextStyle(color: AppColors.moss, fontWeight: FontWeight.w700),
+          align: Alignment.center,
         ),
       ],
     );
@@ -414,6 +437,8 @@ class _YaoRow extends StatelessWidget {
           child: Text(
             line.spirit,
             textAlign: TextAlign.center,
+            maxLines: 1,
+            softWrap: false,
             style: const TextStyle(
               color: _pureRed,
               fontSize: 12,
@@ -423,10 +448,12 @@ class _YaoRow extends StatelessWidget {
           ),
         ),
         SizedBox(
-          width: 56,
+          width: 64,
           child: Text(
             _yaoText(line.relative, line.branch, line.element.label),
             textAlign: TextAlign.center,
+            maxLines: 1,
+            softWrap: false,
             style: const TextStyle(fontSize: 12, height: 1),
           ),
         ),
@@ -440,6 +467,8 @@ class _YaoRow extends StatelessWidget {
                 ? '应'
                 : '',
             textAlign: TextAlign.center,
+            maxLines: 1,
+            softWrap: false,
             style: const TextStyle(
               color: _pureRed,
               fontSize: 12,
@@ -474,20 +503,24 @@ class _ChangedYaoRow extends StatelessWidget {
     return _FitYaoRow(
       children: [
         SizedBox(
-          width: 26,
+          width: 32,
           child: Text(
             mark,
             textAlign: TextAlign.center,
+            maxLines: 1,
+            softWrap: false,
             style: const TextStyle(fontSize: 12, height: 1),
           ),
         ),
         _Bar(yang: yang),
         const SizedBox(width: 4),
         SizedBox(
-          width: 56,
+          width: 64,
           child: Text(
             _yaoText(changed.relative, changed.branch, changed.element.label),
             textAlign: TextAlign.center,
+            maxLines: 1,
+            softWrap: false,
             style: const TextStyle(fontSize: 12, height: 1),
           ),
         ),
@@ -508,11 +541,16 @@ class _FitYaoRow extends StatelessWidget {
       width: double.infinity,
       child: FittedBox(
         fit: BoxFit.scaleDown,
-        child: SizedBox(
-          width: _plateRowWidth,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: children,
+        child: MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.noScaling,
+          ),
+          child: SizedBox(
+            width: _plateRowWidth,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: children,
+            ),
           ),
         ),
       ),
@@ -565,8 +603,8 @@ class _Bar extends StatelessWidget {
 const _pureRed = Color(0xFFFF0000);
 const _yaoRowHeight = 28.0;
 
-/// 六神 30、六亲 56、爻画 56、世应 16。两列并排时按这个宽度缩小。
-const _plateRowWidth = 30.0 + 56.0 + _Bar.width + 16.0;
+/// 六神 30、六亲 64、爻画 56、世应 16。按系统字号 1 排好，再整行缩小。
+const _plateRowWidth = 30.0 + 64.0 + _Bar.width + 16.0;
 
 String _yaoText(String relative, String branch, String element) {
   return '$relative$branch$element';
